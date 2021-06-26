@@ -96,10 +96,14 @@ fn account_registration(client_password: String, server_kp: &KeyPair<RistrettoPo
         client_registration_start_result,
         &registration_response_base64,
     );
-    let password_file =
-        server_side_registration_finish(client_message_base64, server_registration_start_result);
-    password_file
+    server_side_registration_finish(client_message_base64, server_registration_start_result)
+    // the password_file
 }
+
+static REGISTER: &str = r#"
+For sending to server:
+curl -X POST --header "Content-Type: application/json" --data '{"data": "{{__DATA__}}"}' http://localhost:8000/register
+"#;
 
 fn main() {
     let mut server_rng = OsRng;
@@ -128,7 +132,11 @@ fn main() {
                 match line.as_ref() {
                     "1" => {
                         let password_file_bytes = account_registration(password, &server_kp);
-                        // let password_file_base64: String = base64::encode(password_file_bytes);
+                        let password_file_base64: String = base64::encode(&password_file_bytes);
+                        println!(
+                            "{}",
+                            REGISTER.replace("{{__DATA__}}", &password_file_base64)
+                        );
                         registered_users.insert(username, password_file_bytes);
                         continue;
                     }
