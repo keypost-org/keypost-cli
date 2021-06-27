@@ -52,7 +52,7 @@ fn client_side_registration_finish(
     base64::encode(client_message_bytes)
 }
 
-fn server_side_registration(
+fn server_side_registration_start(
     registration_request_base64: &str,
     server_kp: &KeyPair<RistrettoPoint>,
 ) -> ServerRegistrationStartResult<Default> {
@@ -87,8 +87,14 @@ fn account_registration(client_password: String, server_kp: &KeyPair<RistrettoPo
         client_side_registration(&mut client_rng, client_password);
     let registration_request_bytes = client_registration_start_result.message.serialize();
     let registration_request_base64 = base64::encode(&registration_request_bytes);
+    println!(
+        "{}",
+        CURL_TEMPLATE
+            .replace("{{__DATA__}}", &registration_request_base64)
+            .replace("{{__URLPATH__}}", "register/start")
+    );
     let server_registration_start_result =
-        server_side_registration(&registration_request_base64, &server_kp);
+        server_side_registration_start(&registration_request_base64, &server_kp);
     let registration_response_bytes = server_registration_start_result.message.serialize();
     let registration_response_base64 = base64::encode(&registration_response_bytes);
     let client_message_base64 = client_side_registration_finish(
@@ -100,9 +106,9 @@ fn account_registration(client_password: String, server_kp: &KeyPair<RistrettoPo
     // the password_file
 }
 
-static REGISTER: &str = r#"
+static CURL_TEMPLATE: &str = r#"
 For sending to server:
-curl -X POST --header "Content-Type: application/json" --data '{"data": "{{__DATA__}}"}' http://localhost:8000/register
+curl -X POST --header "Content-Type: application/json" --data '{"data": "{{__DATA__}}"}' http://localhost:8000/{{__URLPATH__}}
 "#;
 
 fn main() {
@@ -135,7 +141,9 @@ fn main() {
                         let password_file_base64: String = base64::encode(&password_file_bytes);
                         println!(
                             "{}",
-                            REGISTER.replace("{{__DATA__}}", &password_file_base64)
+                            CURL_TEMPLATE
+                                .replace("{{__DATA__}}", &password_file_base64)
+                                .replace("{{__URLPATH__}}", "register/file")
                         );
                         registered_users.insert(username, password_file_bytes);
                         continue;
