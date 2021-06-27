@@ -70,12 +70,13 @@ fn server_side_registration_start(
 
 fn server_side_registration_finish(
     client_message_base64: String,
-    server_registration_start_result: ServerRegistrationStartResult<Default>,
+    server_registration_bytes: &[u8],
 ) -> Vec<u8> {
     let client_message_bytes =
         base64::decode(client_message_base64).expect("Could not perform base64 decode");
-    let password_file = server_registration_start_result
-        .state
+    let server_registration =
+        ServerRegistration::<Default>::deserialize(server_registration_bytes).unwrap();
+    let password_file = server_registration
         .finish(RegistrationUpload::deserialize(&client_message_bytes[..]).unwrap())
         .unwrap();
     password_file.serialize()
@@ -96,13 +97,20 @@ fn account_registration(client_password: String, server_kp: &KeyPair<RistrettoPo
     let server_registration_start_result =
         server_side_registration_start(&registration_request_base64, &server_kp);
     let registration_response_bytes = server_registration_start_result.message.serialize();
+    let server_registration_bytes = server_registration_start_result.state.serialize();
+    assert_eq!(
+        &server_registration_bytes,
+        &ServerRegistration::<Default>::deserialize(&server_registration_bytes)
+            .unwrap()
+            .serialize()
+    );
     let registration_response_base64 = base64::encode(&registration_response_bytes);
     let client_message_base64 = client_side_registration_finish(
         &mut client_rng,
         client_registration_start_result,
         &registration_response_base64,
     );
-    server_side_registration_finish(client_message_base64, server_registration_start_result)
+    server_side_registration_finish(client_message_base64, &server_registration_bytes)
     // the password_file
 }
 
