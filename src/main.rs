@@ -116,7 +116,7 @@ fn account_registration(client_password: String, server_kp: &KeyPair<RistrettoPo
 
 static CURL_TEMPLATE: &str = r#"
 For sending to server:
-curl -X POST --header "Content-Type: application/json" --data '{"data": "{{__DATA__}}"}' http://localhost:8000/{{__URLPATH__}}
+curl -X POST --header "Content-Type: application/json" --data '{"id": {{__ID__}}, "data": "{{__DATA__}}"}' http://localhost:8000/{{__URLPATH__}}
 "#;
 
 fn main() {
@@ -151,7 +151,7 @@ fn main() {
                             "{}",
                             CURL_TEMPLATE
                                 .replace("{{__DATA__}}", &password_file_base64)
-                                .replace("{{__URLPATH__}}", "register/file")
+                                .replace("{{__URLPATH__}}", "register/finish")
                         );
                         registered_users.insert(username, password_file_bytes);
                         continue;
