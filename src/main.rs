@@ -4,6 +4,7 @@ use std::process::exit;
 
 use curve25519_dalek::ristretto::RistrettoPoint;
 use opaque_ke::keypair::{Key, KeyPair};
+use opaque_ke::rand::random;
 use opaque_ke::ClientRegistrationStartResult;
 use opaque_ke::{
     ciphersuite::CipherSuite, rand::rngs::OsRng, ClientRegistration,
@@ -19,6 +20,7 @@ struct Server {
     pub public_key: Key,
     pub registration_state: Vec<u8>,
     pub response: Vec<u8>,
+    pub nonce: String,
 }
 
 // The ciphersuite trait allows to specify the underlying primitives
@@ -78,6 +80,7 @@ fn server_side_registration_start(registration_request_base64: &str, mut server:
             .unwrap()
             .serialize()
     );
+    server.nonce = random::<u32>().to_string();
     server.registration_state = server_registration_bytes;
     server.response = registration_response_bytes;
     server
@@ -103,24 +106,32 @@ fn account_registration(client_password: String, server: Server) -> Vec<u8> {
     let client_registration_start_result =
         client_side_registration(&mut client_rng, client_password);
     let registration_request_bytes = client_registration_start_result.message.serialize();
-    let registration_request_base64 = base64::encode(&registration_request_bytes);
     println!(
         "{}",
         CURL_TEMPLATE
-            .replace("{{__DATA__}}", &registration_request_base64)
+            .replace("{{__ID__}}", "0")
+            .replace("{{__DATA__}}", &base64::encode(&registration_request_bytes))
             .replace("{{__URLPATH__}}", "register/start")
     );
 
-    let server = server_side_registration_start(&registration_request_base64, server);
+    let server =
+        server_side_registration_start(&base64::encode(&registration_request_bytes), server);
+    let nonce = server.nonce.clone();
     let registration_response_bytes = server.response.as_slice();
-    let registration_response_base64 = base64::encode(registration_response_bytes);
     let client_message_base64 = client_side_registration_finish(
         &mut client_rng,
         client_registration_start_result,
-        &registration_response_base64,
+        &base64::encode(registration_response_bytes),
     );
-    server_side_registration_finish(client_message_base64, server)
-    // the password_file
+    let password_file = server_side_registration_finish(client_message_base64, server);
+    println!(
+        "{}",
+        CURL_TEMPLATE
+            .replace("{{__ID__}}", &nonce)
+            .replace("{{__DATA__}}", &base64::encode(&password_file))
+            .replace("{{__URLPATH__}}", "register/finish")
+    );
+    password_file
 }
 
 static CURL_TEMPLATE: &str = r#"
@@ -155,18 +166,12 @@ fn main() {
                 match line.as_ref() {
                     "1" => {
                         let server = Server {
+                            nonce: "".to_string(),
                             public_key: server_kp.public().clone(),
                             registration_state: vec![],
                             response: vec![],
                         };
                         let password_file_bytes = account_registration(password, server);
-                        let password_file_base64: String = base64::encode(&password_file_bytes);
-                        println!(
-                            "{}",
-                            CURL_TEMPLATE
-                                .replace("{{__DATA__}}", &password_file_base64)
-                                .replace("{{__URLPATH__}}", "register/finish")
-                        );
                         registered_users.insert(username, password_file_bytes);
                         continue;
                     }
