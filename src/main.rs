@@ -3,29 +3,32 @@ use std::io::{Error, ErrorKind};
 use std::process::exit;
 
 use curve25519_dalek::ristretto::RistrettoPoint;
-use opaque_ke::keypair::{Key, KeyPair};
-use opaque_ke::rand::random;
+use opaque_ke::keypair::{/*Key, */KeyPair};
+// use opaque_ke::rand::random;
 use opaque_ke::ClientRegistrationStartResult;
 use opaque_ke::{
     ciphersuite::CipherSuite, rand::rngs::OsRng, ClientRegistration,
-    ClientRegistrationFinishParameters, RegistrationRequest, RegistrationResponse,
-    RegistrationUpload, ServerRegistration, ServerRegistrationStartResult,
+    ClientRegistrationFinishParameters, /*RegistrationRequest,*/ RegistrationResponse,
+    /*RegistrationUpload,*/ ServerRegistration, /*ServerRegistrationStartResult,*/
 };
 use opaque_ke::{
     ClientLogin, ClientLoginFinishParameters, ClientLoginStartParameters, CredentialFinalization,
     CredentialRequest, CredentialResponse, ServerLogin, ServerLoginStartParameters,
 };
 
-struct Server {
-    pub public_key: Key,
-    pub registration_state: Vec<u8>,
-    pub response: Vec<u8>,
-    pub nonce: String,
-}
+mod http;
+
+use http::RegisterResponse;
+
+// struct Server {
+//     pub public_key: Key,
+//     pub registration_state: Vec<u8>,
+//     pub response: Vec<u8>,
+//     pub nonce: String,
+// }
 
 // The ciphersuite trait allows to specify the underlying primitives
 // that will be used in the OPAQUE protocol
-#[allow(dead_code)]
 struct Default;
 impl CipherSuite for Default {
     type Group = RistrettoPoint;
@@ -60,84 +63,76 @@ fn client_side_registration_finish(
     base64::encode(client_message_bytes)
 }
 
-fn server_side_registration_start(registration_request_base64: &str, mut server: Server) -> Server {
-    let registration_request_bytes =
-        base64::decode(registration_request_base64).expect("Could not perform base64 decode");
-    let server_public_key = server.public_key.clone();
-    let mut server_rng = OsRng;
-    let server_registration_start_result: ServerRegistrationStartResult<Default> =
-        ServerRegistration::<Default>::start(
-            &mut server_rng,
-            RegistrationRequest::deserialize(&registration_request_bytes[..]).unwrap(),
-            &server_public_key,
-        )
-        .unwrap();
-    let registration_response_bytes = server_registration_start_result.message.serialize();
-    let server_registration_bytes = server_registration_start_result.state.serialize();
-    assert_eq!(
-        &server_registration_bytes,
-        &ServerRegistration::<Default>::deserialize(&server_registration_bytes)
-            .unwrap()
-            .serialize()
-    );
-    server.nonce = random::<u32>().to_string();
-    server.registration_state = server_registration_bytes;
-    server.response = registration_response_bytes;
-    server
-}
+// fn server_side_registration_start(registration_request_base64: &str, mut server: Server) -> Server {
+//     let registration_request_bytes =
+//         base64::decode(registration_request_base64).expect("Could not perform base64 decode");
+//     let server_public_key = server.public_key.clone();
+//     let mut server_rng = OsRng;
+//     let server_registration_start_result: ServerRegistrationStartResult<Default> =
+//         ServerRegistration::<Default>::start(
+//             &mut server_rng,
+//             RegistrationRequest::deserialize(&registration_request_bytes[..]).unwrap(),
+//             &server_public_key,
+//         )
+//         .unwrap();
+//     let registration_response_bytes = server_registration_start_result.message.serialize();
+//     let server_registration_bytes = server_registration_start_result.state.serialize();
+//     assert_eq!(
+//         &server_registration_bytes,
+//         &ServerRegistration::<Default>::deserialize(&server_registration_bytes)
+//             .unwrap()
+//             .serialize()
+//     );
+//     server.nonce = random::<u32>().to_string();
+//     server.registration_state = server_registration_bytes;
+//     server.response = registration_response_bytes;
+//     server
+// }
 
-fn server_side_registration_finish(client_message_base64: String, server: Server) -> Vec<u8> {
-    let server_registration_bytes = server.registration_state;
-    let client_message_bytes =
-        base64::decode(client_message_base64).expect("Could not perform base64 decode");
-    let server_registration =
-        ServerRegistration::<Default>::deserialize(&server_registration_bytes).unwrap();
-    let password_file = server_registration
-        .finish(RegistrationUpload::deserialize(&client_message_bytes[..]).unwrap())
-        .unwrap();
-    password_file.serialize()
-}
+// fn server_side_registration_finish(client_message_base64: String, server: Server) -> Vec<u8> {
+//     let server_registration_bytes = server.registration_state;
+//     let client_message_bytes =
+//         base64::decode(client_message_base64).expect("Could not perform base64 decode");
+//     let server_registration =
+//         ServerRegistration::<Default>::deserialize(&server_registration_bytes).unwrap();
+//     let password_file = server_registration
+//         .finish(RegistrationUpload::deserialize(&client_message_bytes[..]).unwrap())
+//         .unwrap();
+//     password_file.serialize()
+// }
 
 // https://docs.rs/opaque-ke/0.5.0/opaque_ke/#structs
 // https://docs.rs/opaque-ke/0.5.0/opaque_ke/struct.ServerRegistrationStartResult.html
 // https://docs.rs/opaque-ke/0.5.0/opaque_ke/struct.ServerRegistration.html
-fn account_registration(client_password: String, server: Server) -> Vec<u8> {
+fn account_registration(client_password: String/*, _server: Server*/) -> Vec<u8> {
     let mut client_rng = OsRng;
     let client_registration_start_result =
         client_side_registration(&mut client_rng, client_password);
     let registration_request_bytes = client_registration_start_result.message.serialize();
-    println!(
-        "{}",
-        CURL_TEMPLATE
-            .replace("{{__ID__}}", "0")
-            .replace("{{__DATA__}}", &base64::encode(&registration_request_bytes))
-            .replace("{{__URLPATH__}}", "register/start")
-    );
 
-    let server =
-        server_side_registration_start(&base64::encode(&registration_request_bytes), server);
-    let nonce = server.nonce.clone();
-    let registration_response_bytes = server.response.as_slice();
+    let server_response: RegisterResponse = http::post(
+        "http://localhost:8000/register/start",
+        0,
+        &base64::encode(&registration_request_bytes),
+    )
+    .expect("Error getting response from register/start");
+
     let client_message_base64 = client_side_registration_finish(
         &mut client_rng,
         client_registration_start_result,
-        &base64::encode(registration_response_bytes),
+        &server_response.data,
     );
-    let password_file = server_side_registration_finish(client_message_base64, server);
-    println!(
-        "{}",
-        CURL_TEMPLATE
-            .replace("{{__ID__}}", &nonce)
-            .replace("{{__DATA__}}", &base64::encode(&password_file))
-            .replace("{{__URLPATH__}}", "register/finish")
-    );
-    password_file
-}
 
-static CURL_TEMPLATE: &str = r#"
-For sending to server:
-curl -X POST --header "Content-Type: application/json" --data '{"id": {{__ID__}}, "data": "{{__DATA__}}"}' http://localhost:8000/{{__URLPATH__}}
-"#;
+    let server_response: RegisterResponse = http::post(
+        "http://localhost:8000/register/finish",
+        server_response.id,
+        &client_message_base64,
+    )
+    .expect("Error getting response from register/finish");
+    let password_file = server_response.data;
+
+    base64::decode(password_file).expect("Could not decode base64 encoded password_file")
+}
 
 fn main() {
     let mut server_rng = OsRng;
@@ -165,13 +160,13 @@ fn main() {
                 let password = get_string("Password", &mut rl, true);
                 match line.as_ref() {
                     "1" => {
-                        let server = Server {
-                            nonce: "".to_string(),
-                            public_key: server_kp.public().clone(),
-                            registration_state: vec![],
-                            response: vec![],
-                        };
-                        let password_file_bytes = account_registration(password, server);
+                        // let server = Server {
+                        //     nonce: "".to_string(),
+                        //     public_key: server_kp.public().clone(),
+                        //     registration_state: vec![],
+                        //     response: vec![],
+                        // };
+                        let password_file_bytes = account_registration(password);//, server);
                         registered_users.insert(username, password_file_bytes);
                         continue;
                     }
