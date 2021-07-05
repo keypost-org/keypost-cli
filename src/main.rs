@@ -1,31 +1,22 @@
-use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::process::exit;
 
 use curve25519_dalek::ristretto::RistrettoPoint;
-use opaque_ke::keypair::{Key, KeyPair};
-use opaque_ke::rand::random;
 use opaque_ke::ClientRegistrationStartResult;
 use opaque_ke::{
     ciphersuite::CipherSuite, rand::rngs::OsRng, ClientRegistration,
-    ClientRegistrationFinishParameters, RegistrationRequest, RegistrationResponse,
-    RegistrationUpload, ServerRegistration, ServerRegistrationStartResult,
+    ClientRegistrationFinishParameters, RegistrationResponse,
 };
 use opaque_ke::{
-    ClientLogin, ClientLoginFinishParameters, ClientLoginStartParameters, CredentialFinalization,
-    CredentialRequest, CredentialResponse, ServerLogin, ServerLoginStartParameters,
+    ClientLogin, ClientLoginFinishParameters, ClientLoginStartParameters, CredentialResponse,
 };
 
-struct Server {
-    pub public_key: Key,
-    pub registration_state: Vec<u8>,
-    pub response: Vec<u8>,
-    pub nonce: String,
-}
+mod http;
+
+use http::RegisterResponse;
 
 // The ciphersuite trait allows to specify the underlying primitives
 // that will be used in the OPAQUE protocol
-#[allow(dead_code)]
 struct Default;
 impl CipherSuite for Default {
     type Group = RistrettoPoint;
@@ -60,97 +51,42 @@ fn client_side_registration_finish(
     base64::encode(client_message_bytes)
 }
 
-fn server_side_registration_start(registration_request_base64: &str, mut server: Server) -> Server {
-    let registration_request_bytes =
-        base64::decode(registration_request_base64).expect("Could not perform base64 decode");
-    let server_public_key = server.public_key.clone();
-    let mut server_rng = OsRng;
-    let server_registration_start_result: ServerRegistrationStartResult<Default> =
-        ServerRegistration::<Default>::start(
-            &mut server_rng,
-            RegistrationRequest::deserialize(&registration_request_bytes[..]).unwrap(),
-            &server_public_key,
-        )
-        .unwrap();
-    let registration_response_bytes = server_registration_start_result.message.serialize();
-    let server_registration_bytes = server_registration_start_result.state.serialize();
-    assert_eq!(
-        &server_registration_bytes,
-        &ServerRegistration::<Default>::deserialize(&server_registration_bytes)
-            .unwrap()
-            .serialize()
-    );
-    server.nonce = random::<u32>().to_string();
-    server.registration_state = server_registration_bytes;
-    server.response = registration_response_bytes;
-    server
-}
-
-fn server_side_registration_finish(client_message_base64: String, server: Server) -> Vec<u8> {
-    let server_registration_bytes = server.registration_state;
-    let client_message_bytes =
-        base64::decode(client_message_base64).expect("Could not perform base64 decode");
-    let server_registration =
-        ServerRegistration::<Default>::deserialize(&server_registration_bytes).unwrap();
-    let password_file = server_registration
-        .finish(RegistrationUpload::deserialize(&client_message_bytes[..]).unwrap())
-        .unwrap();
-    password_file.serialize()
-}
-
 // https://docs.rs/opaque-ke/0.5.0/opaque_ke/#structs
 // https://docs.rs/opaque-ke/0.5.0/opaque_ke/struct.ServerRegistrationStartResult.html
 // https://docs.rs/opaque-ke/0.5.0/opaque_ke/struct.ServerRegistration.html
-fn account_registration(client_password: String, server: Server) -> Vec<u8> {
+fn account_registration(client_username: String, client_password: String) {
     let mut client_rng = OsRng;
     let client_registration_start_result =
         client_side_registration(&mut client_rng, client_password);
     let registration_request_bytes = client_registration_start_result.message.serialize();
-    println!(
-        "{}",
-        CURL_TEMPLATE
-            .replace("{{__ID__}}", "0")
-            .replace("{{__DATA__}}", &base64::encode(&registration_request_bytes))
-            .replace("{{__URLPATH__}}", "register/start")
-    );
 
-    let server =
-        server_side_registration_start(&base64::encode(&registration_request_bytes), server);
-    let nonce = server.nonce.clone();
-    let registration_response_bytes = server.response.as_slice();
+    let server_response: RegisterResponse = http::register_start(
+        "http://localhost:8000/register/start",
+        &client_username,
+        &base64::encode(&registration_request_bytes),
+    )
+    .expect("Error getting response from register/start");
+
     let client_message_base64 = client_side_registration_finish(
         &mut client_rng,
         client_registration_start_result,
-        &base64::encode(registration_response_bytes),
+        &server_response.o,
     );
-    let password_file = server_side_registration_finish(client_message_base64, server);
-    println!(
-        "{}",
-        CURL_TEMPLATE
-            .replace("{{__ID__}}", &nonce)
-            .replace("{{__DATA__}}", &base64::encode(&password_file))
-            .replace("{{__URLPATH__}}", "register/finish")
-    );
-    password_file
+
+    let server_response: RegisterResponse = http::register_finish(
+        "http://localhost:8000/register/finish",
+        server_response.id,
+        &client_username,
+        &client_message_base64,
+    )
+    .expect("Error getting response from register/finish");
+    let response = server_response.o;
+    println!("response={:?}", response);
 }
 
-static CURL_TEMPLATE: &str = r#"
-For sending to server:
-curl -X POST --header "Content-Type: application/json" --data '{"id": {{__ID__}}, "data": "{{__DATA__}}"}' http://localhost:8000/{{__URLPATH__}}
-"#;
-
 fn main() {
-    let mut server_rng = OsRng;
-    let server_kp: KeyPair<RistrettoPoint> = Default::generate_random_keypair(&mut server_rng);
-    let mut registered_users = HashMap::<String, Vec<u8>>::new();
-
     let mut rl = rustyline::Editor::<()>::new();
     loop {
-        println!(
-            "\nCurrently registered usernames: {:?}\n",
-            &registered_users.keys()
-        );
-
         println!("Enter an option (1 or 2):");
         println!("1) Register a user");
         println!("2) Login as a user\n");
@@ -165,32 +101,21 @@ fn main() {
                 let password = get_string("Password", &mut rl, true);
                 match line.as_ref() {
                     "1" => {
-                        let server = Server {
-                            nonce: "".to_string(),
-                            public_key: server_kp.public().clone(),
-                            registration_state: vec![],
-                            response: vec![],
-                        };
-                        let password_file_bytes = account_registration(password, server);
-                        registered_users.insert(username, password_file_bytes);
+                        account_registration(username.clone(), password);
                         continue;
                     }
-                    "2" => match registered_users.get(&username) {
-                        Some(password_file_bytes) => {
-                            println!("{}", base64::encode(password_file_bytes));
-                            if account_login(&server_kp, password, password_file_bytes) {
-                                println!("\nLogin success!");
-                            } else {
-                                // Note that at this point, the client knows whether or not the login
-                                // succeeded. In this example, we simply rely on client-reported result
-                                // of login, but in a real client-server implementation, the server may not
-                                // know the outcome of login yet, and extra care must be taken to ensure
-                                // that the server can learn the outcome as well.
-                                println!("\nIncorrect password, please try again.");
-                            }
+                    "2" => {
+                        if account_login(username, password) {
+                            println!("\nLogin success!");
+                        } else {
+                            // Note that at this point, the client knows whether or not the login
+                            // succeeded. In this example, we simply rely on client-reported result
+                            // of login, but in a real client-server implementation, the server may not
+                            // know the outcome of login yet, and extra care must be taken to ensure
+                            // that the server can learn the outcome as well.
+                            println!("\nIncorrect password, please try again.");
                         }
-                        None => println!("Error: Could not find username registered"),
-                    },
+                    }
                     _ => exit(0),
                 }
             }
@@ -203,11 +128,7 @@ fn main() {
 }
 
 // Password-based login between a client and server
-fn account_login(
-    server_kp: &opaque_ke::keypair::KeyPair<curve25519_dalek::ristretto::RistrettoPoint>,
-    client_password: String,
-    password_file_bytes: &[u8],
-) -> bool {
+fn account_login(client_username: String, client_password: String) -> bool {
     let mut client_rng = OsRng;
     let client_login_start_result = ClientLogin::<Default>::start(
         &mut client_rng,
@@ -218,18 +139,10 @@ fn account_login(
     let credential_request_bytes = client_login_start_result.message.serialize();
 
     // Client sends credential_request_bytes to server
-
-    let password_file = ServerRegistration::<Default>::deserialize(password_file_bytes).unwrap();
-    let mut server_rng = OsRng;
-    let server_login_start_result = ServerLogin::start(
-        &mut server_rng,
-        password_file,
-        &server_kp.private(),
-        CredentialRequest::deserialize(&credential_request_bytes[..]).unwrap(),
-        ServerLoginStartParameters::default(),
-    )
-    .unwrap();
-    let credential_response_bytes = server_login_start_result.message.serialize();
+    let credential_response =
+        http::login_start(&client_username, &base64::encode(credential_request_bytes)).unwrap();
+    let credential_response_bytes =
+        base64::decode(&credential_response.o).expect("Could not decode base64 str");
 
     // Server sends credential_response_bytes to client
 
@@ -239,20 +152,24 @@ fn account_login(
     );
 
     if result.is_err() {
-        // Client-detected login failure
+        println!("Client-detected login failure");
         return false;
     }
     let client_login_finish_result = result.unwrap();
     let credential_finalization_bytes = client_login_finish_result.message.serialize();
+    let credential_finalization_str = base64::encode(credential_finalization_bytes);
 
     // Client sends credential_finalization_bytes to server
+    let server_session_key = http::login_finish(
+        credential_response.id,
+        &client_username,
+        &credential_finalization_str,
+    )
+    .unwrap()
+    .o;
 
-    let server_login_finish_result = server_login_start_result
-        .state
-        .finish(CredentialFinalization::deserialize(&credential_finalization_bytes[..]).unwrap())
-        .unwrap();
-
-    client_login_finish_result.session_key == server_login_finish_result.session_key
+    client_login_finish_result.session_key
+        == base64::decode(server_session_key).expect("Could not decode binary session_key")
 }
 
 fn get_string(s1: &str, rl: &mut rustyline::Editor<()>, obfuscate: bool) -> String {
