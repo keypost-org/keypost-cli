@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::io::{Error, ErrorKind};
 use std::process::exit;
 
@@ -55,15 +54,15 @@ fn client_side_registration_finish(
 // https://docs.rs/opaque-ke/0.5.0/opaque_ke/#structs
 // https://docs.rs/opaque-ke/0.5.0/opaque_ke/struct.ServerRegistrationStartResult.html
 // https://docs.rs/opaque-ke/0.5.0/opaque_ke/struct.ServerRegistration.html
-fn account_registration(client_password: String) -> Vec<u8> {
+fn account_registration(client_username: String, client_password: String) {
     let mut client_rng = OsRng;
     let client_registration_start_result =
         client_side_registration(&mut client_rng, client_password);
     let registration_request_bytes = client_registration_start_result.message.serialize();
 
-    let server_response: RegisterResponse = http::register_post(
+    let server_response: RegisterResponse = http::register_start(
         "http://localhost:8000/register/start",
-        None,
+        &client_username,
         &base64::encode(&registration_request_bytes),
     )
     .expect("Error getting response from register/start");
@@ -71,30 +70,23 @@ fn account_registration(client_password: String) -> Vec<u8> {
     let client_message_base64 = client_side_registration_finish(
         &mut client_rng,
         client_registration_start_result,
-        &server_response.data,
+        &server_response.o,
     );
 
-    let server_response: RegisterResponse = http::register_post(
+    let server_response: RegisterResponse = http::register_finish(
         "http://localhost:8000/register/finish",
-        Some(server_response.id),
+        server_response.id,
+        &client_username,
         &client_message_base64,
     )
     .expect("Error getting response from register/finish");
-    let password_file = server_response.data;
-
-    base64::decode(password_file).expect("Could not decode base64 encoded password_file")
+    let response = server_response.o;
+    println!("response={:?}", response);
 }
 
 fn main() {
-    let mut registered_users = HashMap::<String, Vec<u8>>::new();
-
     let mut rl = rustyline::Editor::<()>::new();
     loop {
-        println!(
-            "\nCurrently registered usernames: {:?}\n",
-            &registered_users.keys()
-        );
-
         println!("Enter an option (1 or 2):");
         println!("1) Register a user");
         println!("2) Login as a user\n");
@@ -109,26 +101,21 @@ fn main() {
                 let password = get_string("Password", &mut rl, true);
                 match line.as_ref() {
                     "1" => {
-                        let password_file_bytes = account_registration(password);
-                        registered_users.insert(username, password_file_bytes);
+                        account_registration(username.clone(), password);
                         continue;
                     }
-                    "2" => match registered_users.get(&username) {
-                        Some(password_file_bytes) => {
-                            println!("{}", base64::encode(password_file_bytes));
-                            if account_login(password, password_file_bytes) {
-                                println!("\nLogin success!");
-                            } else {
-                                // Note that at this point, the client knows whether or not the login
-                                // succeeded. In this example, we simply rely on client-reported result
-                                // of login, but in a real client-server implementation, the server may not
-                                // know the outcome of login yet, and extra care must be taken to ensure
-                                // that the server can learn the outcome as well.
-                                println!("\nIncorrect password, please try again.");
-                            }
+                    "2" => {
+                        if account_login(username, password) {
+                            println!("\nLogin success!");
+                        } else {
+                            // Note that at this point, the client knows whether or not the login
+                            // succeeded. In this example, we simply rely on client-reported result
+                            // of login, but in a real client-server implementation, the server may not
+                            // know the outcome of login yet, and extra care must be taken to ensure
+                            // that the server can learn the outcome as well.
+                            println!("\nIncorrect password, please try again.");
                         }
-                        None => println!("Error: Could not find username registered"),
-                    },
+                    }
                     _ => exit(0),
                 }
             }
@@ -141,7 +128,7 @@ fn main() {
 }
 
 // Password-based login between a client and server
-fn account_login(client_password: String, password_file_bytes: &[u8]) -> bool {
+fn account_login(client_username: String, client_password: String) -> bool {
     let mut client_rng = OsRng;
     let client_login_start_result = ClientLogin::<Default>::start(
         &mut client_rng,
@@ -152,13 +139,10 @@ fn account_login(client_password: String, password_file_bytes: &[u8]) -> bool {
     let credential_request_bytes = client_login_start_result.message.serialize();
 
     // Client sends credential_request_bytes to server
-    let credential_response = http::login_start(
-        &base64::encode(password_file_bytes),
-        &base64::encode(credential_request_bytes),
-    )
-    .unwrap();
+    let credential_response =
+        http::login_start(&client_username, &base64::encode(credential_request_bytes)).unwrap();
     let credential_response_bytes =
-        base64::decode(&credential_response.data).expect("Could not decode base64 str");
+        base64::decode(&credential_response.o).expect("Could not decode base64 str");
 
     // Server sends credential_response_bytes to client
 
@@ -176,10 +160,13 @@ fn account_login(client_password: String, password_file_bytes: &[u8]) -> bool {
     let credential_finalization_str = base64::encode(credential_finalization_bytes);
 
     // Client sends credential_finalization_bytes to server
-    let server_session_key =
-        http::login_finish(credential_response.id, &credential_finalization_str)
-            .unwrap()
-            .data;
+    let server_session_key = http::login_finish(
+        credential_response.id,
+        &client_username,
+        &credential_finalization_str,
+    )
+    .unwrap()
+    .o;
 
     client_login_finish_result.session_key
         == base64::decode(server_session_key).expect("Could not decode binary session_key")
