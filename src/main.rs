@@ -3,7 +3,6 @@ use std::io::{Error, ErrorKind};
 use std::process::exit;
 
 use curve25519_dalek::ristretto::RistrettoPoint;
-use opaque_ke::keypair::KeyPair;
 use opaque_ke::ClientRegistrationStartResult;
 use opaque_ke::{
     ciphersuite::CipherSuite, rand::rngs::OsRng, ClientRegistration,
@@ -56,7 +55,7 @@ fn client_side_registration_finish(
 // https://docs.rs/opaque-ke/0.5.0/opaque_ke/#structs
 // https://docs.rs/opaque-ke/0.5.0/opaque_ke/struct.ServerRegistrationStartResult.html
 // https://docs.rs/opaque-ke/0.5.0/opaque_ke/struct.ServerRegistration.html
-fn account_registration(client_password: String /*, _server: Server*/) -> Vec<u8> {
+fn account_registration(client_password: String) -> Vec<u8> {
     let mut client_rng = OsRng;
     let client_registration_start_result =
         client_side_registration(&mut client_rng, client_password);
@@ -87,8 +86,6 @@ fn account_registration(client_password: String /*, _server: Server*/) -> Vec<u8
 }
 
 fn main() {
-    let mut server_rng = OsRng;
-    let server_kp: KeyPair<RistrettoPoint> = Default::generate_random_keypair(&mut server_rng);
     let mut registered_users = HashMap::<String, Vec<u8>>::new();
 
     let mut rl = rustyline::Editor::<()>::new();
@@ -119,7 +116,7 @@ fn main() {
                     "2" => match registered_users.get(&username) {
                         Some(password_file_bytes) => {
                             println!("{}", base64::encode(password_file_bytes));
-                            if account_login(&server_kp, password, password_file_bytes) {
+                            if account_login(password, password_file_bytes) {
                                 println!("\nLogin success!");
                             } else {
                                 // Note that at this point, the client knows whether or not the login
@@ -144,11 +141,7 @@ fn main() {
 }
 
 // Password-based login between a client and server
-fn account_login(
-    _server_kp: &opaque_ke::keypair::KeyPair<curve25519_dalek::ristretto::RistrettoPoint>,
-    client_password: String,
-    password_file_bytes: &[u8],
-) -> bool {
+fn account_login(client_password: String, password_file_bytes: &[u8]) -> bool {
     let mut client_rng = OsRng;
     let client_login_start_result = ClientLogin::<Default>::start(
         &mut client_rng,
