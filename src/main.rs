@@ -7,9 +7,7 @@ use opaque_ke::{
     ciphersuite::CipherSuite, rand::rngs::OsRng, ClientRegistration,
     ClientRegistrationFinishParameters, RegistrationResponse,
 };
-use opaque_ke::{
-    ClientLogin, ClientLoginFinishParameters, ClientLoginStartParameters, CredentialResponse,
-};
+use opaque_ke::{ClientLogin, ClientLoginFinishParameters, CredentialResponse};
 
 mod http;
 
@@ -130,12 +128,8 @@ fn main() {
 // Password-based login between a client and server
 fn account_login(client_username: String, client_password: String) -> bool {
     let mut client_rng = OsRng;
-    let client_login_start_result = ClientLogin::<Default>::start(
-        &mut client_rng,
-        client_password.as_bytes(),
-        ClientLoginStartParameters::default(),
-    )
-    .unwrap();
+    let client_login_start_result =
+        ClientLogin::<Default>::start(&mut client_rng, client_password.as_bytes()).unwrap();
     let credential_request_bytes = client_login_start_result.message.serialize();
 
     // Client sends credential_request_bytes to server
