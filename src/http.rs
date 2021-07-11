@@ -3,27 +3,27 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RegisterStartRequest {
-    pub u: String,
+    pub e: String,
     pub i: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RegisterFinishRequest {
     pub id: u32,
-    pub u: String,
+    pub e: String,
     pub i: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LoginStartRequest {
-    pub u: String,
+    pub e: String,
     pub i: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LoginFinishRequest {
     pub id: u32,
-    pub u: String,
+    pub e: String,
     pub i: String,
 }
 
@@ -41,7 +41,7 @@ pub struct LoginResponse {
 
 pub fn register_start(
     url: &str,
-    user_name: &str,
+    email: &str,
     input: &str,
 ) -> Result<RegisterResponse, reqwest::Error> {
     let mut headers = HeaderMap::new();
@@ -51,7 +51,7 @@ pub fn register_start(
         .post(url)
         .headers(headers)
         .json::<RegisterStartRequest>(&RegisterStartRequest {
-            u: user_name.to_string(),
+            e: email.to_string(),
             i: input.to_string(),
         })
         .send()
@@ -64,7 +64,7 @@ pub fn register_start(
 pub fn register_finish(
     url: &str,
     id: u32,
-    user_name: &str,
+    email: &str,
     input: &str,
 ) -> Result<RegisterResponse, reqwest::Error> {
     let mut headers = HeaderMap::new();
@@ -75,7 +75,7 @@ pub fn register_finish(
         .headers(headers)
         .json::<RegisterFinishRequest>(&RegisterFinishRequest {
             id,
-            u: user_name.to_string(),
+            e: email.to_string(),
             i: input.to_string(),
         })
         .send()
@@ -85,7 +85,7 @@ pub fn register_finish(
     }
 }
 
-pub fn login_start(user_name: &str, input: &str) -> Result<LoginResponse, reqwest::Error> {
+pub fn login_start(email: &str, input: &str) -> Result<LoginResponse, reqwest::Error> {
     let mut headers = HeaderMap::new();
     headers.insert(reqwest::header::CONTENT_TYPE, "json".parse().unwrap());
 
@@ -93,7 +93,7 @@ pub fn login_start(user_name: &str, input: &str) -> Result<LoginResponse, reqwes
         .post("http://localhost:8000/login/start")
         .headers(headers)
         .json::<LoginStartRequest>(&LoginStartRequest {
-            u: user_name.to_string(),
+            e: email.to_string(),
             i: input.to_string(),
         })
         .send()
@@ -103,11 +103,7 @@ pub fn login_start(user_name: &str, input: &str) -> Result<LoginResponse, reqwes
     }
 }
 
-pub fn login_finish(
-    id: u32,
-    user_name: &str,
-    input: &str,
-) -> Result<LoginResponse, reqwest::Error> {
+pub fn login_finish(id: u32, email: &str, input: &str) -> Result<LoginResponse, reqwest::Error> {
     let mut headers = HeaderMap::new();
     headers.insert(reqwest::header::CONTENT_TYPE, "json".parse().unwrap());
 
@@ -116,7 +112,7 @@ pub fn login_finish(
         .headers(headers)
         .json::<LoginFinishRequest>(&LoginFinishRequest {
             id,
-            u: user_name.to_string(),
+            e: email.to_string(),
             i: input.to_string(),
         })
         .send()

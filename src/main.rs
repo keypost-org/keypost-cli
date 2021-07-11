@@ -52,7 +52,7 @@ fn client_side_registration_finish(
 // https://docs.rs/opaque-ke/0.5.0/opaque_ke/#structs
 // https://docs.rs/opaque-ke/0.5.0/opaque_ke/struct.ServerRegistrationStartResult.html
 // https://docs.rs/opaque-ke/0.5.0/opaque_ke/struct.ServerRegistration.html
-fn account_registration(client_username: String, client_password: String) {
+fn account_registration(client_email: String, client_password: String) {
     let mut client_rng = OsRng;
     let client_registration_start_result =
         client_side_registration(&mut client_rng, client_password);
@@ -60,7 +60,7 @@ fn account_registration(client_username: String, client_password: String) {
 
     let server_response: RegisterResponse = http::register_start(
         "http://localhost:8000/register/start",
-        &client_username,
+        &client_email,
         &base64::encode(&registration_request_bytes),
     )
     .expect("Error getting response from register/start");
@@ -74,7 +74,7 @@ fn account_registration(client_username: String, client_password: String) {
     let server_response: RegisterResponse = http::register_finish(
         "http://localhost:8000/register/finish",
         server_response.id,
-        &client_username,
+        &client_email,
         &client_message_base64,
     )
     .expect("Error getting response from register/finish");
@@ -95,15 +95,15 @@ fn main() {
                     println!("Error: Invalid option (either specify 1 or 2)");
                     continue;
                 }
-                let username = get_string("Username", &mut rl, false);
+                let email = get_string("Email", &mut rl, false);
                 let password = get_string("Password", &mut rl, true);
                 match line.as_ref() {
                     "1" => {
-                        account_registration(username.clone(), password);
+                        account_registration(email.clone(), password);
                         continue;
                     }
                     "2" => {
-                        if account_login(username, password) {
+                        if account_login(email, password) {
                             println!("\nLogin success!");
                         } else {
                             // Note that at this point, the client knows whether or not the login
@@ -126,7 +126,7 @@ fn main() {
 }
 
 // Password-based login between a client and server
-fn account_login(client_username: String, client_password: String) -> bool {
+fn account_login(client_email: String, client_password: String) -> bool {
     let mut client_rng = OsRng;
     let client_login_start_result =
         ClientLogin::<Default>::start(&mut client_rng, client_password.as_bytes()).unwrap();
@@ -134,7 +134,7 @@ fn account_login(client_username: String, client_password: String) -> bool {
 
     // Client sends credential_request_bytes to server
     let credential_response =
-        http::login_start(&client_username, &base64::encode(credential_request_bytes)).unwrap();
+        http::login_start(&client_email, &base64::encode(credential_request_bytes)).unwrap();
     let credential_response_bytes =
         base64::decode(&credential_response.o).expect("Could not decode base64 str");
 
@@ -156,7 +156,7 @@ fn account_login(client_username: String, client_password: String) -> bool {
     // Client sends credential_finalization_bytes to server
     let server_session_key = http::login_finish(
         credential_response.id,
-        &client_username,
+        &client_email,
         &credential_finalization_str,
     )
     .unwrap()
