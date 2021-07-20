@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct RegisterStartRequest {
     pub e: String,
     pub i: String,
+    pub c: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -12,6 +13,7 @@ pub struct RegisterFinishRequest {
     pub id: u32,
     pub e: String,
     pub i: String,
+    pub v: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -43,6 +45,7 @@ pub fn register_start(
     url: &str,
     email: &str,
     input: &str,
+    pkce_code_challenge: &str,
 ) -> Result<RegisterResponse, reqwest::Error> {
     let mut headers = HeaderMap::new();
     headers.insert(reqwest::header::CONTENT_TYPE, "json".parse().unwrap());
@@ -53,6 +56,7 @@ pub fn register_start(
         .json::<RegisterStartRequest>(&RegisterStartRequest {
             e: email.to_string(),
             i: input.to_string(),
+            c: pkce_code_challenge.to_string(),
         })
         .send()
     {
@@ -66,6 +70,7 @@ pub fn register_finish(
     id: u32,
     email: &str,
     input: &str,
+    pkce_code_verify: &str,
 ) -> Result<RegisterResponse, reqwest::Error> {
     let mut headers = HeaderMap::new();
     headers.insert(reqwest::header::CONTENT_TYPE, "json".parse().unwrap());
@@ -77,6 +82,7 @@ pub fn register_finish(
             id,
             e: email.to_string(),
             i: input.to_string(),
+            v: pkce_code_verify.to_string(),
         })
         .send()
     {

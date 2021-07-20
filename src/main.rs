@@ -23,7 +23,7 @@ impl CipherSuite for Default {
     type SlowHash = opaque_ke::slow_hash::NoOpHash;
 }
 
-fn client_side_registration(
+fn client_side_registration_start(
     client_rng: &mut OsRng,
     password: String,
 ) -> ClientRegistrationStartResult<Default> {
@@ -55,13 +55,17 @@ fn client_side_registration_finish(
 fn account_registration(client_email: String, client_password: String) {
     let mut client_rng = OsRng;
     let client_registration_start_result =
-        client_side_registration(&mut client_rng, client_password);
+        client_side_registration_start(&mut client_rng, client_password);
     let registration_request_bytes = client_registration_start_result.message.serialize();
+    let pkce_code_verify = pkce::code_verifier(128);
+    let pkce_code_verify_b64 = base64::encode(&pkce_code_verify);
+    let pkce_code_challenge = pkce::code_challenge(&pkce_code_verify);
 
     let server_response: RegisterResponse = http::register_start(
         "http://localhost:8000/register/start",
         &client_email,
         &base64::encode(&registration_request_bytes),
+        &pkce_code_challenge,
     )
     .expect("Error getting response from register/start");
 
@@ -76,6 +80,7 @@ fn account_registration(client_email: String, client_password: String) {
         server_response.id,
         &client_email,
         &client_message_base64,
+        &pkce_code_verify_b64,
     )
     .expect("Error getting response from register/finish");
     let response = server_response.o;
