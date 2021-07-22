@@ -7,7 +7,9 @@ use opaque_ke::{
     ciphersuite::CipherSuite, rand::rngs::OsRng, ClientRegistration,
     ClientRegistrationFinishParameters, RegistrationResponse,
 };
-use opaque_ke::{ClientLogin, ClientLoginFinishParameters, CredentialResponse};
+use opaque_ke::{
+    ClientLogin, ClientLoginFinishParameters, ClientLoginStartParameters, CredentialResponse,
+};
 
 mod http;
 
@@ -133,9 +135,16 @@ fn main() {
 // Password-based login between a client and server
 fn account_login(client_email: String, client_password: String) -> bool {
     let mut client_rng = OsRng;
-    let client_login_start_result =
-        ClientLogin::<Default>::start(&mut client_rng, client_password.as_bytes()).unwrap();
-    let credential_request_bytes = client_login_start_result.message.serialize();
+    let client_login_start_result = ClientLogin::<Default>::start(
+        &mut client_rng,
+        client_password.as_bytes(),
+        ClientLoginStartParameters::default(),
+    )
+    .unwrap();
+    let credential_request_bytes = client_login_start_result
+        .message
+        .serialize()
+        .expect("Encountered a ProtocolError");
 
     // Client sends credential_request_bytes to server
     let credential_response =
@@ -155,7 +164,10 @@ fn account_login(client_email: String, client_password: String) -> bool {
         return false;
     }
     let client_login_finish_result = result.unwrap();
-    let credential_finalization_bytes = client_login_finish_result.message.serialize();
+    let credential_finalization_bytes = client_login_finish_result
+        .message
+        .serialize()
+        .expect("Encountered a ProtocolError");
     let credential_finalization_str = base64::encode(credential_finalization_bytes);
 
     // Client sends credential_finalization_bytes to server
