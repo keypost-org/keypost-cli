@@ -159,13 +159,13 @@ fn account_login(client_email: String, client_password: String) -> bool {
     let credential_finalization_str = base64::encode(credential_finalization_bytes);
 
     // Client sends credential_finalization_bytes to server
-    let server_session_key = http::login_finish(
+    let login_response = http::login_finish(
         credential_response.id,
         &client_email,
         &credential_finalization_str,
     )
-    .unwrap()
-    .o;
+    .expect("Could not get a LoginResponse!");
+    let server_session_key = login_response.o;
 
     client_login_finish_result.session_key
         == base64::decode(server_session_key).expect("Could not decode binary session_key")
