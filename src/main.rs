@@ -1,21 +1,9 @@
 use std::io::{Error, ErrorKind};
 use std::process::exit;
 
-use curve25519_dalek::ristretto::RistrettoPoint;
-use opaque_ke::ciphersuite::CipherSuite;
-
 mod account;
+mod crypto;
 mod http;
-
-// The ciphersuite trait allows to specify the underlying primitives
-// that will be used in the OPAQUE protocol
-struct Default;
-impl CipherSuite for Default {
-    type Group = RistrettoPoint;
-    type KeyExchange = opaque_ke::key_exchange::tripledh::TripleDH;
-    type Hash = sha2::Sha512;
-    type SlowHash = opaque_ke::slow_hash::NoOpHash;
-}
 
 fn main() {
     let mut rl = rustyline::Editor::<()>::new();
@@ -34,19 +22,25 @@ fn main() {
                 let password = get_string("Password", &mut rl, true);
                 match line.as_ref() {
                     "1" => {
-                        account::registration(email.clone(), password);
+                        let response = account::registration(email.clone(), password);
+                        println!("response={:?}", response);
                         continue;
                     }
                     "2" => {
-                        if account::login(email, password) {
-                            println!("\nLogin success!");
-                        } else {
-                            // Note that at this point, the client knows whether or not the login
-                            // succeeded. In this example, we simply rely on client-reported result
-                            // of login, but in a real client-server implementation, the server may not
-                            // know the outcome of login yet, and extra care must be taken to ensure
-                            // that the server can learn the outcome as well.
-                            println!("\nIncorrect password, please try again.");
+                        match account::login(email, password) {
+                            Ok(successful) => {
+                                if successful {
+                                    println!("\nLogin success!");
+                                } else {
+                                    // Note that at this point, the client knows whether or not the login
+                                    // succeeded. In this example, we simply rely on client-reported result
+                                    // of login, but in a real client-server implementation, the server may not
+                                    // know the outcome of login yet, and extra care must be taken to ensure
+                                    // that the server can learn the outcome as well.
+                                    println!("\nIncorrect password, please try again.");
+                                }
+                            }
+                            Err(s) => println!("{}", &s),
                         }
                     }
                     _ => exit(0),
