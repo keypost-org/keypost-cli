@@ -1,4 +1,4 @@
-use curve25519_dalek::ristretto::RistrettoPoint;
+// use curve25519_dalek::ristretto::RistrettoPoint;
 use opaque_ke::{
     ciphersuite::CipherSuite, errors::ProtocolError, rand::rngs::OsRng, ClientLogin,
     ClientLoginFinishParameters, ClientLoginStartResult, ClientRegistration,
@@ -9,12 +9,20 @@ use opaque_ke::{
 // The ciphersuite trait allows to specify the underlying primitives
 // that will be used in the OPAQUE protocol
 pub struct Default;
+
+// #[cfg(feature = "ristretto255")]
+// impl CipherSuite for Default {
+//     type OprfCs = opaque_ke::Ristretto255;
+//     type KeGroup = opaque_ke::Ristretto255;
+//     type KeyExchange = opaque_ke::key_exchange::tripledh::TripleDh;
+//     type Ksf = opaque_ke::ksf::Identity;
+// }
+
 impl CipherSuite for Default {
-    type OprfGroup = RistrettoPoint;
-    type KeGroup = RistrettoPoint;
-    type KeyExchange = opaque_ke::key_exchange::tripledh::TripleDH;
-    type Hash = sha2::Sha512;
-    type SlowHash = opaque_ke::slow_hash::NoOpHash;
+    type OprfCs = p256::NistP256;
+    type KeGroup = p256::NistP256;
+    type KeyExchange = opaque_ke::key_exchange::tripledh::TripleDh;
+    type Ksf = opaque_ke::ksf::Identity;
 }
 
 pub fn rng() -> OsRng {
@@ -32,16 +40,18 @@ pub fn login_start(
 
 /// Server sends credential_response_bytes to client
 pub fn login_finish(
+    password: String,
     client_login_start_result: ClientLoginStartResult<Default>,
     credential_response: &[u8],
 ) -> Result<(Vec<u8>, Vec<u8>), ProtocolError> {
     let client_login_finish_result = client_login_start_result.state.finish(
+        password.as_bytes(),
         CredentialResponse::deserialize(credential_response).unwrap(),
         ClientLoginFinishParameters::default(),
     )?;
     Ok((
-        client_login_finish_result.message.serialize(),
-        client_login_finish_result.session_key,
+        client_login_finish_result.message.serialize().to_vec(),
+        client_login_finish_result.session_key.to_vec(),
     ))
 }
 
@@ -53,6 +63,7 @@ pub fn register_start(rng: &mut OsRng, password: String) -> ClientRegistrationSt
 
 pub fn register_finish(
     client_rng: &mut OsRng,
+    password: String,
     client_registration_start_result: ClientRegistrationStartResult<Default>,
     registration_response_base64: &str,
 ) -> String {
@@ -62,6 +73,7 @@ pub fn register_finish(
         .state
         .finish(
             client_rng,
+            password.as_bytes(),
             RegistrationResponse::deserialize(&registration_response_bytes[..]).unwrap(),
             ClientRegistrationFinishParameters::default(),
         )
