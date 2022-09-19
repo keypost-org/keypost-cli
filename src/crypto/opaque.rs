@@ -6,18 +6,19 @@ use opaque_ke::{
     RegistrationResponse,
 };
 
-// The ciphersuite trait allows to specify the underlying primitives
+// The CipherSuite trait allows to specify the underlying primitives
 // that will be used in the OPAQUE protocol
 pub struct Default;
 
-// #[cfg(feature = "ristretto255")]
-// impl CipherSuite for Default {
-//     type OprfCs = opaque_ke::Ristretto255;
-//     type KeGroup = opaque_ke::Ristretto255;
-//     type KeyExchange = opaque_ke::key_exchange::tripledh::TripleDh;
-//     type Ksf = opaque_ke::ksf::Identity;
-// }
+#[cfg(feature = "ristretto255")]
+impl CipherSuite for Default {
+    type OprfCs = opaque_ke::Ristretto255;
+    type KeGroup = opaque_ke::Ristretto255;
+    type KeyExchange = opaque_ke::key_exchange::tripledh::TripleDh;
+    type Ksf = opaque_ke::ksf::Identity;
+}
 
+#[cfg(not(feature = "ristretto255"))]
 impl CipherSuite for Default {
     type OprfCs = p256::NistP256;
     type KeGroup = p256::NistP256;
