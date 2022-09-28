@@ -62,7 +62,7 @@ fn execute_login_exchange(
     client_password: &str,
 ) -> Result<(Vec<u8>, Vec<u8>), String> {
     let client_login_start_result = crypto::opaque::login_start(client_password)
-        .map_err(|err| format!("account login error: {:?}", err))?;
+        .map_err(|err| format!("account login start error: {:?}", err))?;
     let credential_request_bytes = client_login_start_result.message.serialize();
 
     // Client sends credential_request_bytes to server
@@ -76,7 +76,7 @@ fn execute_login_exchange(
         client_login_start_result,
         &credential_response_bytes,
     )
-    .map_err(|err| format!("account login error: {:?}", err))?;
+    .map_err(|err| format!("account login finish error: {:?}", err))?;
     let credential_finalization_str = base64::encode(credential_finalization_bytes);
 
     // Client sends credential_finalization_bytes to server

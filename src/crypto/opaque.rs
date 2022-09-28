@@ -3,7 +3,7 @@ use opaque_ke::{
     ciphersuite::CipherSuite, errors::ProtocolError, rand::rngs::OsRng, ClientLogin,
     ClientLoginFinishParameters, ClientLoginStartResult, ClientRegistration,
     ClientRegistrationFinishParameters, ClientRegistrationStartResult, CredentialResponse,
-    RegistrationResponse,
+    Identifiers, RegistrationResponse,
 };
 
 // The CipherSuite trait allows to specify the underlying primitives
@@ -48,7 +48,14 @@ pub fn login_finish(
     let client_login_finish_result = client_login_start_result.state.finish(
         password.as_bytes(),
         CredentialResponse::deserialize(credential_response).unwrap(),
-        ClientLoginFinishParameters::default(),
+        ClientLoginFinishParameters::new(
+            None,
+            Identifiers {
+                client: None,
+                server: None,
+            },
+            None,
+        ),
     )?;
     Ok((
         client_login_finish_result.message.serialize().to_vec(),
@@ -76,7 +83,13 @@ pub fn register_finish(
             client_rng,
             password.as_bytes(),
             RegistrationResponse::deserialize(&registration_response_bytes[..]).unwrap(),
-            ClientRegistrationFinishParameters::default(),
+            ClientRegistrationFinishParameters::new(
+                Identifiers {
+                    client: None,
+                    server: None,
+                },
+                None,
+            ),
         )
         .unwrap();
     let client_message_bytes = client_finish_registration_result.message.serialize();
