@@ -44,7 +44,7 @@ pub fn login_finish(
     password: String,
     client_login_start_result: ClientLoginStartResult<Default>,
     credential_response: &[u8],
-) -> Result<(Vec<u8>, Vec<u8>), ProtocolError> {
+) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), ProtocolError> {
     let client_login_finish_result = client_login_start_result.state.finish(
         password.as_bytes(),
         CredentialResponse::deserialize(credential_response).unwrap(),
@@ -57,9 +57,11 @@ pub fn login_finish(
             None,
         ),
     )?;
+    let export_key = client_login_finish_result.export_key.to_vec();
     Ok((
         client_login_finish_result.message.serialize().to_vec(),
         client_login_finish_result.session_key.to_vec(),
+        export_key,
     ))
 }
 
@@ -74,7 +76,7 @@ pub fn register_finish(
     password: String,
     client_registration_start_result: ClientRegistrationStartResult<Default>,
     registration_response_base64: &str,
-) -> String {
+) -> Result<(Vec<u8>, Vec<u8>), ProtocolError> {
     let registration_response_bytes =
         base64::decode(registration_response_base64).expect("Could not perform base64 decode");
     let client_finish_registration_result = client_registration_start_result
@@ -92,6 +94,10 @@ pub fn register_finish(
             ),
         )
         .unwrap();
-    let client_message_bytes = client_finish_registration_result.message.serialize();
-    base64::encode(client_message_bytes)
+    let client_message_bytes = client_finish_registration_result
+        .message
+        .serialize()
+        .to_vec();
+    let export_key = client_finish_registration_result.export_key.to_vec();
+    Ok((client_message_bytes, export_key))
 }

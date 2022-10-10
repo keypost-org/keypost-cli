@@ -4,9 +4,15 @@ use std::process::exit;
 mod account;
 mod crypto;
 mod http;
+mod util;
+
+fn init() {
+    util::create_default_directory().expect("Cannot create default directory!");
+}
 
 fn main() {
     let mut rl = rustyline::Editor::<()>::new();
+    init();
     loop {
         println!("Enter an option (1 or 2):");
         println!("1) Register a user");
