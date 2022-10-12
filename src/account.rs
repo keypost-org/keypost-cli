@@ -8,7 +8,7 @@ pub fn login(client_email: String, client_password: String) -> Result<bool, Stri
     let (client_session_key, server_session_key, client_export_key) =
         execute_login_exchange(&client_email, &client_password)?;
     // securely store the export_key (https://github.com/novifinancial/opaque-ke/blob/94fd3598d0bb8ae5747264112937e988f741ccbb/src/lib.rs#L620-L641)
-    util::write_to_secure_file("export_key.private", &client_export_key)
+    util::write_to_secure_file("export_key.private", &client_export_key, true)
         .expect("Could not write to file!");
     Ok(client_session_key == server_session_key)
 }
@@ -51,7 +51,7 @@ fn execute_registration_exchange(
         &server_response.o,
     )
     .map_err(|err| format!("account register finish error: {:?}", err))?;
-    util::write_to_secure_file("export_key.private", &client_export_key)
+    util::write_to_secure_file("export_key.private", &client_export_key, true)
         .expect("Could not write to file!");
 
     let server_response: RegisterResponse = http::register_finish(

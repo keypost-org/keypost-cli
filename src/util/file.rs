@@ -19,9 +19,12 @@ pub fn create_default_directory() -> Result<(), Error> {
     }
 }
 
-pub fn write_to_secure_file(file_name: &str, bytes: &[u8]) -> Result<(), Error> {
+pub fn write_to_secure_file(file_name: &str, bytes: &[u8], base64: bool) -> Result<(), Error> {
     let file_path = default_dir() + "/" + file_name;
-    fs::write(&file_path, bytes)?;
+    match base64 {
+        true => fs::write(&file_path, base64::encode(&bytes))?,
+        false => fs::write(&file_path, bytes)?,
+    }
     let mut p = fs::metadata(&file_path)?.permissions();
     p.set_mode(0o600);
     fs::set_permissions(&file_path, p)
@@ -29,6 +32,13 @@ pub fn write_to_secure_file(file_name: &str, bytes: &[u8]) -> Result<(), Error> 
 
 pub fn read_file(file_path: &str) -> Result<Vec<u8>, Error> {
     fs::read(file_path).map_err(|err| {
+        println!("ERROR: Could not read file {}. Error: {:?}", file_path, err);
+        err
+    })
+}
+
+pub fn read_base64_file(file_path: &str) -> Result<String, Error> {
+    fs::read_to_string(file_path).map_err(|err| {
         println!("ERROR: Could not read file {}. Error: {:?}", file_path, err);
         err
     })
