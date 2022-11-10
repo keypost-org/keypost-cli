@@ -34,17 +34,13 @@ fn main() {
                     }
                     "2" => {
                         match account::login(email, password) {
-                            Ok(successful) => {
-                                if successful {
-                                    println!("\nLogin success!");
-                                } else {
-                                    // Note that at this point, the client knows whether or not the login
-                                    // succeeded. In this example, we simply rely on client-reported result
-                                    // of login, but in a real client-server implementation, the server may not
-                                    // know the outcome of login yet, and extra care must be taken to ensure
-                                    // that the server can learn the outcome as well.
-                                    println!("\nIncorrect password, please try again.");
-                                }
+                            Ok(()) => {
+                                println!("\nLogin success!")
+                                // Note that at this point, the client knows whether or not the login
+                                // succeeded. In this example, we simply rely on client-reported result
+                                // of login, but in a real client-server implementation, the server may not
+                                // know the outcome of login yet, and extra care must be taken to ensure
+                                // that the server can learn the outcome as well.
                             }
                             Err(s) => println!("{}", &s),
                         }

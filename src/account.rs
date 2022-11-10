@@ -4,13 +4,17 @@ use crate::util;
 
 use http::RegisterResponse;
 
-pub fn login(client_email: String, client_password: String) -> Result<bool, String> {
-    let (client_session_key, server_session_key, client_export_key) =
+pub fn login(client_email: String, client_password: String) -> Result<(), String> {
+    let (is_success, client_session_key, client_export_key) =
         execute_login_exchange(&client_email, &client_password)?;
     // securely store the export_key (https://github.com/novifinancial/opaque-ke/blob/94fd3598d0bb8ae5747264112937e988f741ccbb/src/lib.rs#L620-L641)
     util::write_to_secure_file("export_key.private", &client_export_key, true)
         .expect("Could not write to file!");
-    Ok(client_session_key == server_session_key)
+    // TODO securely store the session_key ()
+    match is_success {
+        true => Ok(()),
+        false => Err("Login failed!".to_string()),
+    }
 }
 
 pub fn registration(client_email: String, client_password: String) -> Result<String, String> {
@@ -68,14 +72,15 @@ fn execute_registration_exchange(
 fn execute_login_exchange(
     client_email: &str,
     client_password: &str,
-) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), String> {
+) -> Result<(bool, Vec<u8>, Vec<u8>), String> {
     let client_login_start_result = crypto::opaque::login_start(client_password)
         .map_err(|err| format!("account login start error: {:?}", err))?;
     let credential_request_bytes = client_login_start_result.message.serialize();
 
     // Client sends credential_request_bytes to server
     let credential_response =
-        http::login_start(client_email, &base64::encode(credential_request_bytes)).unwrap();
+        http::login_start(client_email, &base64::encode(credential_request_bytes))
+            .map_err(|err| format!("Failed login_start: {:?}", err))?;
     let credential_response_bytes =
         base64::decode(&credential_response.o).expect("Could not decode base64 str");
 
@@ -95,7 +100,10 @@ fn execute_login_exchange(
         &credential_finalization_str,
     )
     .expect("Could not get a LoginResponse!");
-    let server_session_key =
-        base64::decode(login_response.o).expect("Could not decode binary session_key");
-    Ok((client_session_key, server_session_key, client_export_key))
+    let server_response = login_response.o;
+    Ok((
+        server_response == "Success",
+        client_session_key,
+        client_export_key,
+    ))
 }
