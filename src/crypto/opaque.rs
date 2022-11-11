@@ -8,10 +8,10 @@ use opaque_ke::{
 
 // The CipherSuite trait allows to specify the underlying primitives
 // that will be used in the OPAQUE protocol
-pub struct Default;
+pub struct DefaultCipherSuite;
 
 #[cfg(feature = "ristretto255")]
-impl CipherSuite for Default {
+impl CipherSuite for DefaultCipherSuite {
     type OprfCs = opaque_ke::Ristretto255;
     type KeGroup = opaque_ke::Ristretto255;
     type KeyExchange = opaque_ke::key_exchange::tripledh::TripleDh;
@@ -19,7 +19,7 @@ impl CipherSuite for Default {
 }
 
 #[cfg(not(feature = "ristretto255"))]
-impl CipherSuite for Default {
+impl CipherSuite for DefaultCipherSuite {
     type OprfCs = p256::NistP256;
     type KeGroup = p256::NistP256;
     type KeyExchange = opaque_ke::key_exchange::tripledh::TripleDh;
@@ -32,17 +32,17 @@ pub fn rng() -> OsRng {
 
 pub fn login_start(
     client_password: &str,
-) -> Result<ClientLoginStartResult<Default>, ProtocolError> {
+) -> Result<ClientLoginStartResult<DefaultCipherSuite>, ProtocolError> {
     let mut client_rng = OsRng;
     let client_login_start_result =
-        ClientLogin::<Default>::start(&mut client_rng, client_password.as_bytes())?;
+        ClientLogin::<DefaultCipherSuite>::start(&mut client_rng, client_password.as_bytes())?;
     Ok(client_login_start_result)
 }
 
 /// Server sends credential_response_bytes to client
 pub fn login_finish(
     password: String,
-    client_login_start_result: ClientLoginStartResult<Default>,
+    client_login_start_result: ClientLoginStartResult<DefaultCipherSuite>,
     credential_response: &[u8],
 ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), ProtocolError> {
     let client_login_finish_result = client_login_start_result.state.finish(
@@ -65,16 +65,19 @@ pub fn login_finish(
     ))
 }
 
-pub fn register_start(rng: &mut OsRng, password: String) -> ClientRegistrationStartResult<Default> {
+pub fn register_start(
+    rng: &mut OsRng,
+    password: String,
+) -> ClientRegistrationStartResult<DefaultCipherSuite> {
     let client_registration_start_result =
-        ClientRegistration::<Default>::start(rng, password.as_bytes()).unwrap();
+        ClientRegistration::<DefaultCipherSuite>::start(rng, password.as_bytes()).unwrap();
     client_registration_start_result
 }
 
 pub fn register_finish(
     client_rng: &mut OsRng,
     password: String,
-    client_registration_start_result: ClientRegistrationStartResult<Default>,
+    client_registration_start_result: ClientRegistrationStartResult<DefaultCipherSuite>,
     registration_response_base64: &str,
 ) -> Result<(Vec<u8>, Vec<u8>), ProtocolError> {
     let registration_response_bytes =
