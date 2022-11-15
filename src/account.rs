@@ -1,16 +1,15 @@
 use crate::crypto;
 use crate::http;
+use crate::models::*;
 use crate::util;
 
-use http::RegisterResponse;
-
 pub fn login(client_email: String, client_password: String) -> Result<(), String> {
-    let (is_success, client_session_key, client_export_key) =
+    let (is_success, _client_session_key, client_export_key) =
         execute_login_exchange(&client_email, &client_password)?;
     // securely store the export_key (https://github.com/novifinancial/opaque-ke/blob/94fd3598d0bb8ae5747264112937e988f741ccbb/src/lib.rs#L620-L641)
     util::write_to_secure_file("export_key.private", &client_export_key, true)
         .expect("Could not write to file!");
-    // TODO securely store the session_key ()
+    // TODO securely store the session_key?
     match is_success {
         true => Ok(()),
         false => Err("Login failed!".to_string()),

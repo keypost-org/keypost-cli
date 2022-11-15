@@ -1,45 +1,5 @@
+use crate::models::*;
 use reqwest::header::HeaderMap;
-use serde::{Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct RegisterStartRequest {
-    pub e: String,
-    pub i: String,
-    pub c: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct RegisterFinishRequest {
-    pub id: u32,
-    pub e: String,
-    pub i: String,
-    pub v: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct LoginStartRequest {
-    pub e: String,
-    pub i: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct LoginFinishRequest {
-    pub id: u32,
-    pub e: String,
-    pub i: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct RegisterResponse {
-    pub id: u32,
-    pub o: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct LoginResponse {
-    pub id: u32,
-    pub o: String,
-}
 
 pub fn register_start(
     url: &str,
@@ -110,12 +70,9 @@ pub fn login_start(email: &str, input: &str) -> Result<LoginResponse, reqwest::E
 }
 
 pub fn login_finish(id: u32, email: &str, input: &str) -> Result<LoginResponse, reqwest::Error> {
-    let mut headers = HeaderMap::new();
-    headers.insert(reqwest::header::CONTENT_TYPE, "json".parse().unwrap());
-
     match reqwest::blocking::Client::new()
         .post("http://localhost:8000/login/finish")
-        .headers(headers)
+        .headers(create_headers())
         .json::<LoginFinishRequest>(&LoginFinishRequest {
             id,
             e: email.to_string(),
@@ -126,4 +83,94 @@ pub fn login_finish(id: u32, email: &str, input: &str) -> Result<LoginResponse, 
         Ok(response) => response.json::<LoginResponse>(),
         Err(err) => Err(err),
     }
+}
+
+pub fn register_locker_start(
+    id: &str,
+    email: &str,
+    input: &str,
+) -> Result<RegisterLockerResponse, reqwest::Error> {
+    match reqwest::blocking::Client::new()
+        .post("http://localhost:8000/locker/register/start")
+        .headers(create_headers())
+        .json::<RegisterLockerStartRequest>(&RegisterLockerStartRequest {
+            id: id.to_string(),
+            e: email.to_string(),
+            i: input.to_string(),
+        })
+        .send()
+    {
+        Ok(response) => response.json::<RegisterLockerResponse>(),
+        Err(err) => Err(err),
+    }
+}
+
+pub fn register_locker_finish(
+    id: &str,
+    email: &str,
+    input: &str,
+    ciphertext: &str,
+) -> Result<RegisterLockerResponse, reqwest::Error> {
+    match reqwest::blocking::Client::new()
+        .post("http://localhost:8000/locker/register/finish")
+        .headers(create_headers())
+        .json::<RegisterLockerFinishRequest>(&RegisterLockerFinishRequest {
+            id: id.to_string(),
+            e: email.to_string(),
+            i: input.to_string(),
+            c: ciphertext.to_string(),
+        })
+        .send()
+    {
+        Ok(response) => response.json::<RegisterLockerResponse>(),
+        Err(err) => Err(err),
+    }
+}
+
+pub fn open_locker_start(
+    id: &str,
+    email: &str,
+    input: &str,
+) -> Result<OpenLockerResponse, reqwest::Error> {
+    match reqwest::blocking::Client::new()
+        .post("http://localhost:8000/locker/open/start")
+        .headers(create_headers())
+        .json::<OpenLockerStartRequest>(&OpenLockerStartRequest {
+            id: id.to_string(),
+            e: email.to_string(),
+            i: input.to_string(),
+        })
+        .send()
+    {
+        Ok(response) => response.json::<OpenLockerResponse>(),
+        Err(err) => Err(err),
+    }
+}
+
+pub fn open_locker_finish(
+    id: &str,
+    email: &str,
+    input: &str,
+    nonce: u32,
+) -> Result<OpenLockerResponse, reqwest::Error> {
+    match reqwest::blocking::Client::new()
+        .post("http://localhost:8000/locker/open/finish")
+        .headers(create_headers())
+        .json::<OpenLockerFinishRequest>(&OpenLockerFinishRequest {
+            id: id.to_string(),
+            e: email.to_string(),
+            i: input.to_string(),
+            n: nonce,
+        })
+        .send()
+    {
+        Ok(response) => response.json::<OpenLockerResponse>(),
+        Err(err) => Err(err),
+    }
+}
+
+fn create_headers() -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    headers.insert(reqwest::header::CONTENT_TYPE, "json".parse().unwrap());
+    headers
 }

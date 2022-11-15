@@ -1,9 +1,9 @@
 // use curve25519_dalek::ristretto::RistrettoPoint;
 use opaque_ke::{
     ciphersuite::CipherSuite, errors::ProtocolError, rand::rngs::OsRng, ClientLogin,
-    ClientLoginFinishParameters, ClientLoginStartResult, ClientRegistration,
-    ClientRegistrationFinishParameters, ClientRegistrationStartResult, CredentialResponse,
-    Identifiers, RegistrationResponse,
+    ClientLoginFinishParameters, ClientLoginFinishResult, ClientLoginStartResult,
+    ClientRegistration, ClientRegistrationFinishParameters, ClientRegistrationFinishResult,
+    ClientRegistrationStartResult, CredentialResponse, Identifiers, RegistrationResponse,
 };
 
 // The CipherSuite trait allows to specify the underlying primitives
@@ -103,4 +103,50 @@ pub fn register_finish(
         .to_vec();
     let export_key = client_finish_registration_result.export_key.to_vec();
     Ok((client_message_bytes, export_key))
+}
+
+pub fn register_locker_start(
+    rng: &mut OsRng,
+    password: &str,
+) -> Result<ClientRegistrationStartResult<DefaultCipherSuite>, ProtocolError> {
+    let client_registration_start_result =
+        ClientRegistration::<DefaultCipherSuite>::start(rng, password.as_bytes())?;
+    Ok(client_registration_start_result)
+}
+
+pub fn register_locker_finish(
+    rng: &mut OsRng,
+    client_registration_start_result: ClientRegistrationStartResult<DefaultCipherSuite>,
+    registration_response_bytes: &[u8],
+    password: &str,
+) -> Result<ClientRegistrationFinishResult<DefaultCipherSuite>, ProtocolError> {
+    client_registration_start_result.state.finish(
+        rng,
+        password.as_bytes(),
+        RegistrationResponse::deserialize(registration_response_bytes).unwrap(),
+        ClientRegistrationFinishParameters::default(),
+    )
+}
+
+pub fn open_locker_start(
+    rng: &mut OsRng,
+    password_bytes: &[u8],
+) -> Result<ClientLoginStartResult<DefaultCipherSuite>, ProtocolError> {
+    let client_login_start_result = ClientLogin::<DefaultCipherSuite>::start(rng, password_bytes)?;
+    Ok(client_login_start_result)
+}
+
+pub fn open_locker_finish(
+    client_login_start_result: ClientLoginStartResult<DefaultCipherSuite>,
+    password_bytes: &[u8],
+    credential_response: &[u8],
+) -> Result<ClientLoginFinishResult<DefaultCipherSuite>, ProtocolError> {
+    let client_login_finish_result: ClientLoginFinishResult<DefaultCipherSuite> =
+        client_login_start_result.state.finish(
+            password_bytes,
+            CredentialResponse::deserialize(credential_response)
+                .expect("Could not deserialize credential_response"),
+            ClientLoginFinishParameters::default(),
+        )?;
+    Ok(client_login_finish_result)
 }

@@ -30,11 +30,18 @@ pub fn write_to_secure_file(file_name: &str, bytes: &[u8], base64: bool) -> Resu
     fs::set_permissions(&file_path, p)
 }
 
-pub fn read_file(file_path: &str) -> Result<Vec<u8>, Error> {
-    fs::read(file_path).map_err(|err| {
+pub fn read_file(file_path: &str, base64: bool) -> Result<Vec<u8>, Error> {
+    let bytes = fs::read(file_path).map_err(|err| {
         println!("ERROR: Could not read file {}. Error: {:?}", file_path, err);
         err
-    })
+    });
+    match base64 {
+        true => match bytes {
+            Ok(b) => Ok(base64::decode(b).expect("Could not base64 decode bytes!")),
+            Err(e) => Err(e),
+        },
+        false => bytes,
+    }
 }
 
 pub fn read_base64_file(file_path: &str) -> Result<String, Error> {
