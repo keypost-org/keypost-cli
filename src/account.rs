@@ -10,6 +10,8 @@ pub fn login(client_email: String, client_password: String) -> Result<(), String
     util::write_to_secure_file("export_key.private", &client_export_key, true)
         .expect("Could not write to file!");
     // TODO securely store the session_key?
+    //  We probably need to since future requests will need to be
+    //  encrypted with (and/or show validation), and/or can also possibly be used for HMAC.
     match is_success {
         true => Ok(()),
         false => Err("Login failed!".to_string()),
