@@ -1,10 +1,11 @@
-// use curve25519_dalek::ristretto::RistrettoPoint;
 use opaque_ke::{
     ciphersuite::CipherSuite, errors::ProtocolError, rand::rngs::OsRng, ClientLogin,
     ClientLoginFinishParameters, ClientLoginFinishResult, ClientLoginStartResult,
     ClientRegistration, ClientRegistrationFinishParameters, ClientRegistrationFinishResult,
     ClientRegistrationStartResult, CredentialResponse, Identifiers, RegistrationResponse,
 };
+
+use crate::util;
 
 // The CipherSuite trait allows to specify the underlying primitives
 // that will be used in the OPAQUE protocol
@@ -58,11 +59,23 @@ pub fn login_finish(
         ),
     )?;
     let export_key = client_login_finish_result.export_key.to_vec();
-    Ok((
-        client_login_finish_result.message.serialize().to_vec(),
-        client_login_finish_result.session_key.to_vec(),
-        export_key,
-    ))
+    let current_server_static_public_key: Vec<u8> =
+        client_login_finish_result.server_s_pk.serialize().to_vec();
+    match util::read_file("/server.public", true) {
+        Ok(registered_server_static_public_key) => {
+            if current_server_static_public_key == registered_server_static_public_key {
+                Ok((
+                    client_login_finish_result.message.serialize().to_vec(),
+                    client_login_finish_result.session_key.to_vec(),
+                    export_key,
+                ))
+            } else {
+                println!("server public key doesn't match, possible man-in-the-middle attack!");
+                Err(ProtocolError::InvalidLoginError)
+            }
+        }
+        Err(_err) => Err(ProtocolError::InvalidLoginError),
+    }
 }
 
 pub fn register_start(
@@ -82,12 +95,13 @@ pub fn register_finish(
 ) -> Result<(Vec<u8>, Vec<u8>), ProtocolError> {
     let registration_response_bytes =
         base64::decode(registration_response_base64).expect("Could not perform base64 decode");
-    let client_finish_registration_result = client_registration_start_result
+    let client_registration_finish_result = client_registration_start_result
         .state
         .finish(
             client_rng,
             password.as_bytes(),
-            RegistrationResponse::deserialize(&registration_response_bytes[..]).unwrap(),
+            RegistrationResponse::deserialize(&registration_response_bytes[..])
+                .expect("Could not deserialize RegistrationResponse"),
             ClientRegistrationFinishParameters::new(
                 Identifiers {
                     client: None,
@@ -96,12 +110,15 @@ pub fn register_finish(
                 None,
             ),
         )
-        .unwrap();
-    let client_message_bytes = client_finish_registration_result
+        .expect("An error occured during ClientRegistrationFinishResult");
+    let client_message_bytes = client_registration_finish_result
         .message
         .serialize()
         .to_vec();
-    let export_key = client_finish_registration_result.export_key.to_vec();
+    let export_key = client_registration_finish_result.export_key.to_vec();
+    let server_static_public_key = client_registration_finish_result.server_s_pk.serialize();
+    util::write_to_secure_file("server.public", &server_static_public_key, true)
+        .expect("Could not write server public key to file");
     Ok((client_message_bytes, export_key))
 }
 

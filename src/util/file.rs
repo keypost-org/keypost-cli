@@ -30,23 +30,23 @@ pub fn write_to_secure_file(file_name: &str, bytes: &[u8], base64: bool) -> Resu
     fs::set_permissions(&file_path, p)
 }
 
-pub fn read_file(file_path: &str, base64: bool) -> Result<Vec<u8>, Error> {
-    let bytes = fs::read(file_path).map_err(|err| {
-        println!("ERROR: Could not read file {}. Error: {:?}", file_path, err);
-        err
-    });
+pub fn read_file(file_name: &str, base64: bool) -> Result<Vec<u8>, Error> {
+    let file_path = default_dir() + "/" + file_name;
     match base64 {
-        true => match bytes {
-            Ok(b) => Ok(base64::decode(b).expect("Could not base64 decode bytes!")),
-            Err(e) => Err(e),
+        true => match read_base64_file_path(&file_path) {
+            Ok(s) => Ok(base64::decode(s).expect("Could not base64 decode bytes!")),
+            Err(err) => Err(err),
         },
-        false => bytes,
+        false => fs::read(&file_path),
     }
 }
 
-pub fn read_base64_file(file_path: &str) -> Result<String, Error> {
-    fs::read_to_string(file_path).map_err(|err| {
-        println!("ERROR: Could not read file {}. Error: {:?}", file_path, err);
+pub fn read_base64_file_path(file_path: &str) -> Result<String, Error> {
+    fs::read_to_string(&file_path).map_err(|err| {
+        println!(
+            "ERROR: Could not read file {}. Error: {:?}",
+            &file_path, err
+        );
         err
     })
 }
