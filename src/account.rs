@@ -9,9 +9,7 @@ pub fn login(client_email: String, client_password: String) -> Result<(), String
     // securely store the export_key (https://github.com/novifinancial/opaque-ke/blob/94fd3598d0bb8ae5747264112937e988f741ccbb/src/lib.rs#L620-L641)
     util::write_to_secure_file("export_key.private", &client_export_key, true)
         .expect("Could not write to file!");
-    // TODO securely store the session_key?
-    //  We probably need to since future requests will need to be
-    //  encrypted with (and/or show validation), and/or can also possibly be used for HMAC.
+    // TODO securely store the session_key to make future authenticated requests (with or w/o HMAC).
     match is_success {
         true => Ok(()),
         false => Err("Login failed!".to_string()),

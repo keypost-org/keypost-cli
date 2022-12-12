@@ -124,10 +124,10 @@ pub fn register_finish(
 
 pub fn register_locker_start(
     rng: &mut OsRng,
-    password: &str,
+    key: &[u8],
 ) -> Result<ClientRegistrationStartResult<DefaultCipherSuite>, ProtocolError> {
     let client_registration_start_result =
-        ClientRegistration::<DefaultCipherSuite>::start(rng, password.as_bytes())?;
+        ClientRegistration::<DefaultCipherSuite>::start(rng, key)?;
     Ok(client_registration_start_result)
 }
 
@@ -135,11 +135,11 @@ pub fn register_locker_finish(
     rng: &mut OsRng,
     client_registration_start_result: ClientRegistrationStartResult<DefaultCipherSuite>,
     registration_response_bytes: &[u8],
-    password: &str,
+    key: &[u8],
 ) -> Result<ClientRegistrationFinishResult<DefaultCipherSuite>, ProtocolError> {
     client_registration_start_result.state.finish(
         rng,
-        password.as_bytes(),
+        key,
         RegistrationResponse::deserialize(registration_response_bytes).unwrap(),
         ClientRegistrationFinishParameters::default(),
     )
@@ -147,20 +147,20 @@ pub fn register_locker_finish(
 
 pub fn open_locker_start(
     rng: &mut OsRng,
-    password_bytes: &[u8],
+    key: &[u8],
 ) -> Result<ClientLoginStartResult<DefaultCipherSuite>, ProtocolError> {
-    let client_login_start_result = ClientLogin::<DefaultCipherSuite>::start(rng, password_bytes)?;
+    let client_login_start_result = ClientLogin::<DefaultCipherSuite>::start(rng, key)?;
     Ok(client_login_start_result)
 }
 
 pub fn open_locker_finish(
     client_login_start_result: ClientLoginStartResult<DefaultCipherSuite>,
-    password_bytes: &[u8],
+    key: &[u8],
     credential_response: &[u8],
 ) -> Result<ClientLoginFinishResult<DefaultCipherSuite>, ProtocolError> {
     let client_login_finish_result: ClientLoginFinishResult<DefaultCipherSuite> =
         client_login_start_result.state.finish(
-            password_bytes,
+            key,
             CredentialResponse::deserialize(credential_response)
                 .expect("Could not deserialize credential_response"),
             ClientLoginFinishParameters::default(),

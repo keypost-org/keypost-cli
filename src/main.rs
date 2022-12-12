@@ -29,6 +29,7 @@ fn main() {
                     println!("Error: Invalid option (either specify 1, 2, 3 or 4)");
                     continue;
                 }
+                //TODO Check for login session key before asking for email and password.
                 let email = get_string("Email", &mut rl, false);
                 let password = get_string("Password", &mut rl, true);
                 match line.as_ref() {
@@ -56,14 +57,18 @@ fn main() {
                     "3" => {
                         let locker_id = get_string("Name", &mut rl, false);
                         let message = get_string("Secret", &mut rl, false);
+                        let export_key = util::read_file("export_key.private", true)
+                            .expect("Error reading export_key");
                         let response =
-                            locker::register_locker(&locker_id, &email, password, message);
+                            locker::register_locker(&locker_id, &email, &export_key, message);
                         println!("response={:?}", response);
                         continue;
                     }
                     "4" => {
                         let locker_id = get_string("Name", &mut rl, false);
-                        let response = locker::open_locker(&locker_id, &email, password);
+                        let export_key = util::read_file("export_key.private", true)
+                            .expect("Error reading export_key");
+                        let response = locker::open_locker(&locker_id, &email, &export_key);
                         println!("response={:?}", response);
                         continue;
                     }

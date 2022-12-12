@@ -5,13 +5,12 @@ use crate::http;
 pub fn register_locker(
     locker_id: &str,
     email: &str,
-    password: String,
+    key: &[u8],
     secret_message: String,
 ) -> Result<String, String> {
     let mut client_rng = crypto::opaque::rng();
-    let client_registration_start_result =
-        crypto::register_locker_start(&mut client_rng, &password)
-            .map_err(|err| format!("Error with crypto::register_locker_start: {:?}", err))?;
+    let client_registration_start_result = crypto::register_locker_start(&mut client_rng, key)
+        .map_err(|err| format!("Error with crypto::register_locker_start: {:?}", err))?;
     let registration_request_bytes = client_registration_start_result
         .message
         .serialize()
@@ -32,7 +31,7 @@ pub fn register_locker(
         &mut client_rng,
         client_registration_start_result,
         &registration_response_bytes,
-        &password,
+        key,
     )
     .map_err(|err| {
         format!(
@@ -63,11 +62,10 @@ pub fn register_locker(
 }
 
 // Open the contents of a locker with a password between a client and server
-pub fn open_locker(locker_id: &str, email: &str, password: String) -> Result<String, String> {
+pub fn open_locker(locker_id: &str, email: &str, key: &[u8]) -> Result<String, String> {
     let mut client_rng = crypto::opaque::rng();
-    let client_login_start_result =
-        crypto::opaque::open_locker_start(&mut client_rng, password.as_bytes())
-            .map_err(|err| format!("Error in opaque::open_locker_start: {:?}", err))?;
+    let client_login_start_result = crypto::opaque::open_locker_start(&mut client_rng, key)
+        .map_err(|err| format!("Error in opaque::open_locker_start: {:?}", err))?;
     let credential_request_bytes = client_login_start_result.message.serialize().to_vec();
 
     // Client sends credential_request_bytes to server
@@ -81,7 +79,7 @@ pub fn open_locker(locker_id: &str, email: &str, password: String) -> Result<Str
 
     let result = crypto::opaque::open_locker_finish(
         client_login_start_result,
-        password.as_bytes(),
+        key,
         &base64::decode(credential_response.o).expect("Could not base64 decode!"),
     );
     if result.is_err() {
