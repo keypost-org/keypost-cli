@@ -1,19 +1,19 @@
+use sha2::Digest;
+use sha2::Sha256;
+
 use crate::crypto;
 use crate::http;
 use crate::models::*;
 use crate::util;
 
 pub fn login(client_email: String, client_password: String) -> Result<(), String> {
-    let (is_success, _client_session_key, client_export_key) =
-        execute_login_exchange(&client_email, &client_password)?;
-    // securely store the export_key (https://github.com/novifinancial/opaque-ke/blob/94fd3598d0bb8ae5747264112937e988f741ccbb/src/lib.rs#L620-L641)
-    util::write_to_secure_file("export_key.private", &client_export_key, true)
-        .expect("Could not write to file!");
-    // TODO securely store the session_key to make future authenticated requests (with or w/o HMAC).
-    match is_success {
-        true => Ok(()),
-        false => Err("Login failed!".to_string()),
-    }
+    let (session_key, export_key) = execute_login_exchange(&client_email, &client_password)?;
+    // store the session and export keys (https://github.com/novifinancial/opaque-ke/blob/94fd3598d0bb8ae5747264112937e988f741ccbb/src/lib.rs#L620-L641)
+    util::write_to_secure_file("export_key.private", &export_key, true)
+        .map_err(|err| format!("Could not write export_key to file: {:?}", err))?;
+    util::write_to_secure_file("session_key.private", &session_key, true)
+        .map_err(|err| format!("Could not write session_key to file: {:?}", err))?;
+    Ok(())
 }
 
 pub fn registration(client_email: String, client_password: String) -> Result<String, String> {
@@ -71,7 +71,7 @@ fn execute_registration_exchange(
 fn execute_login_exchange(
     client_email: &str,
     client_password: &str,
-) -> Result<(bool, Vec<u8>, Vec<u8>), String> {
+) -> Result<(Vec<u8>, Vec<u8>), String> {
     let client_login_start_result = crypto::opaque::login_start(client_password)
         .map_err(|err| format!("account login start error: {:?}", err))?;
     let credential_request_bytes = client_login_start_result.message.serialize();
@@ -99,10 +99,38 @@ fn execute_login_exchange(
         &credential_finalization_str,
     )
     .expect("Could not get a LoginResponse!");
-    let server_response = login_response.o;
-    Ok((
-        server_response == "Success",
-        client_session_key,
-        client_export_key,
-    ))
+
+    match execute_login_verify(login_response, &client_session_key) {
+        Ok(()) => Ok((client_session_key, client_export_key)),
+        Err(err) => Err(err),
+    }
+}
+
+fn execute_login_verify(response: LoginResponse, client_session_key: &[u8]) -> Result<(), String> {
+    match response.o.as_str() {
+        "Failed" => Err("login_finish error".to_string()),
+        rand_challenge => {
+            let rand_bytes =
+                base64::decode(rand_challenge).expect("Could not base64 decode rand_challenge");
+            let nonce = create_login_verify_nonce(&response);
+            let ciphertext = &crypto::encrypt_bytes(&nonce, &rand_bytes, client_session_key);
+            let hash_bytes = Sha256::digest(ciphertext);
+            let hash = base64::encode(hash_bytes);
+            let server_response = http::login_verify(response.id, &hash)
+                .map_err(|err| format!("Error during login_verify request: {:?}", err))?;
+            match server_response.o.as_str() {
+                "Success" => Ok(()),
+                _ => Err("login_verify error".to_string()),
+            }
+        }
+    }
+}
+
+fn create_login_verify_nonce(response: &LoginResponse) -> Vec<u8> {
+    [
+        response.id.to_be_bytes(),
+        response.id.to_be_bytes(),
+        response.id.to_be_bytes(),
+    ]
+    .concat()
 }

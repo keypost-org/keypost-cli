@@ -85,6 +85,21 @@ pub fn login_finish(id: u32, email: &str, input: &str) -> Result<LoginResponse, 
     }
 }
 
+pub fn login_verify(id: u32, input: &str) -> Result<LoginResponse, reqwest::Error> {
+    match reqwest::blocking::Client::new()
+        .post("http://localhost:8000/login/verify")
+        .headers(create_headers())
+        .json::<LoginVerifyRequest>(&LoginVerifyRequest {
+            id,
+            i: input.to_string(),
+        })
+        .send()
+    {
+        Ok(response) => response.json::<LoginResponse>(),
+        Err(err) => Err(err),
+    }
+}
+
 pub fn register_locker_start(
     id: &str,
     email: &str,

@@ -39,21 +39,10 @@ fn main() {
                         println!("response={:?}", response);
                         continue;
                     }
-                    "2" => {
-                        match account::login(email, password) {
-                            Ok(()) => {
-                                println!("\nLogin success!")
-                                // Note that at this point, the client knows whether or not the login
-                                // succeeded. In this example, we simply rely on client-reported result
-                                // of login, but in a real client-server implementation, the server may not
-                                // know the outcome of login yet, and extra care must be taken to ensure
-                                // that the server can learn the outcome as well.
-
-                                // keypost-cli notes: Implement a challenge similar to PKCE or what `ssh` does with PKI.
-                            }
-                            Err(s) => println!("{}", &s),
-                        }
-                    }
+                    "2" => match account::login(email, password) {
+                        Ok(()) => println!("\nLogin success!"),
+                        Err(err) => println!("\nLogin failed: {}", &err),
+                    },
                     "3" => {
                         let locker_id = get_string("Name", &mut rl, false);
                         let message = get_string("Secret", &mut rl, false);

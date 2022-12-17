@@ -29,6 +29,12 @@ pub struct LoginFinishRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct LoginVerifyRequest {
+    pub id: u32,
+    pub i: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct RegisterResponse {
     pub id: u32,
     pub o: String,
