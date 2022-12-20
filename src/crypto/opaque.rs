@@ -48,7 +48,7 @@ pub fn login_finish(
 ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), ProtocolError> {
     let client_login_finish_result = client_login_start_result.state.finish(
         password.as_bytes(),
-        CredentialResponse::deserialize(credential_response).unwrap(),
+        CredentialResponse::deserialize(credential_response)?,
         ClientLoginFinishParameters::new(
             None,
             Identifiers {
