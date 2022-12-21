@@ -16,7 +16,12 @@ pub fn login(client_email: String, client_password: String) -> Result<(), String
     Ok(())
 }
 
-pub fn registration(client_email: String, client_password: String) -> Result<String, String> {
+pub fn registration(
+    _registration_key: String,
+    client_email: String,
+    client_password: String,
+) -> Result<String, String> {
+    // TODO registration_key provided by server once user has paid account.
     let server_response = execute_registration_exchange(client_email, client_password)
         .map_err(|err| format!("account registration error: {:?}", err))?;
     let response = server_response.o;

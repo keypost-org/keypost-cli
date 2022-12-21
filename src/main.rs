@@ -16,8 +16,8 @@ const MENU: &str = "
 Choose an option:
 1) Register a user
 2) Login as a user
-3) Put a key
-4) Get a key
+3) Get a key
+4) Put a key
 ";
 
 fn init() {
@@ -39,49 +39,35 @@ fn run_interactive() -> Result<(), Error> {
             Ok(line) => {
                 match line.as_ref() {
                     "1" => {
-                        // TODO Provided by server once user has paid account.
-                        let _registration_key = get_string("Registration Key", &mut rl, false);
-                        let email = get_string("Email", &mut rl, false);
-                        let password = get_string("Password", &mut rl, true);
-                        // TODO password length validation
-                        let response = account::registration(email.clone(), password)
-                            .unwrap_or_else(|err| err);
+                        let registration_key = get_string("Registration Key", &mut rl, false);
+                        let (email, password) = get_email_password(&mut rl);
+                        let response = account_registration(registration_key, email, password);
                         print_response(&response);
-                        continue;
                     }
                     "2" => {
                         //TODO Check for login session key before asking for email and password.
-                        let email = get_string("Email", &mut rl, false);
-                        let password = get_string("Password", &mut rl, true);
-                        match account::login(email, password) {
-                            Ok(()) => print_response("Login success!"),
-                            Err(err) => print_response(&format!("Login failed: {}", &err)),
-                        }
+                        let (email, password) = get_email_password(&mut rl);
+                        let response = account_login(email, password);
+                        print_response(&response);
                     }
                     "3" => {
                         //TODO Check for login session key before asking for email and password.
-                        let email = get_string("Email", &mut rl, false);
-                        let locker_id = get_string("Name", &mut rl, false);
-                        let message = get_string("Secret", &mut rl, false);
+                        let (email, _password) = get_email_password(&mut rl);
+                        let key_name = get_string("Name", &mut rl, false);
                         let export_key = util::read_file("export_key.private", true)
                             .expect("Error reading export_key");
-                        let response =
-                            locker::register_locker(&locker_id, &email, &export_key, message)
-                                .unwrap_or_else(|err| err);
-                        println!("\n{}", response);
+                        let response = get_key(&email, &key_name, &export_key);
                         print_response(&response);
-                        continue;
                     }
                     "4" => {
                         //TODO Check for login session key before asking for email and password.
-                        let email = get_string("Email", &mut rl, false);
-                        let locker_id = get_string("Name", &mut rl, false);
+                        let (email, _password) = get_email_password(&mut rl);
+                        let key_name = get_string("Name", &mut rl, false);
+                        let message = get_string("Secret", &mut rl, false);
                         let export_key = util::read_file("export_key.private", true)
                             .expect("Error reading export_key");
-                        let response = locker::open_locker(&locker_id, &email, &export_key)
-                            .unwrap_or_else(|err| err);
+                        let response = put_key(&email, &key_name, &export_key, message);
                         print_response(&response);
-                        continue;
                     }
                     //TODO Give option '5' to delete a key.
                     //TODO Give option '6' to export all secrets to a file.
@@ -102,12 +88,38 @@ fn run_interactive() -> Result<(), Error> {
     }
 }
 
+fn account_registration(registration_key: String, email: String, password: String) -> String {
+    account::registration(registration_key, email, password).unwrap_or_else(|err| err)
+}
+
+fn account_login(email: String, password: String) -> String {
+    match account::login(email, password) {
+        Ok(()) => "Login success!".to_string(),
+        Err(err) => format!("Login failed: {}", &err),
+    }
+}
+
+fn put_key(email: &str, key_name: &str, export_key: &[u8], secret_message: String) -> String {
+    locker::register_locker(key_name, email, export_key, secret_message).unwrap_or_else(|err| err)
+}
+
+fn get_key(email: &str, key_name: &str, export_key: &[u8]) -> String {
+    locker::open_locker(key_name, email, export_key).unwrap_or_else(|err| err)
+}
+
 fn print_response(r: &str) {
     println!("{}", r);
 }
 
 fn print_menu() {
-    println!("{}", MENU);
+    print_response(MENU);
+}
+
+fn get_email_password(rl: &mut Editor<()>) -> (String, String) {
+    let email = get_string("Email", rl, false);
+    // TODO password length validation
+    let password = get_string("Password", rl, true);
+    (email, password)
 }
 
 fn get_string(s1: &str, rl: &mut Editor<()>, obfuscate: bool) -> String {
