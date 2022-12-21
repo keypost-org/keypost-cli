@@ -1,3 +1,5 @@
+use std::io::ErrorKind;
+
 use opaque_ke::{
     ciphersuite::CipherSuite, errors::ProtocolError, rand::rngs::OsRng, ClientLogin,
     ClientLoginFinishParameters, ClientLoginFinishResult, ClientLoginStartResult,
@@ -61,7 +63,7 @@ pub fn login_finish(
     let export_key = client_login_finish_result.export_key.to_vec();
     let current_server_static_public_key: Vec<u8> =
         client_login_finish_result.server_s_pk.serialize().to_vec();
-    match util::read_file("/server.public", true) {
+    match util::read_file("server.public", true) {
         Ok(registered_server_static_public_key) => {
             if current_server_static_public_key == registered_server_static_public_key {
                 Ok((
@@ -74,7 +76,23 @@ pub fn login_finish(
                 Err(ProtocolError::InvalidLoginError)
             }
         }
-        Err(_err) => Err(ProtocolError::InvalidLoginError),
+        Err(err) => {
+            if err.kind() == ErrorKind::NotFound {
+                util::write_to_secure_file(
+                    "server.public",
+                    &current_server_static_public_key,
+                    true,
+                )
+                .expect("Could not write server public key to file");
+                Ok((
+                    client_login_finish_result.message.serialize().to_vec(),
+                    client_login_finish_result.session_key.to_vec(),
+                    export_key,
+                ))
+            } else {
+                Err(ProtocolError::InvalidLoginError)
+            }
+        }
     }
 }
 

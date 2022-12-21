@@ -60,7 +60,7 @@ fn execute_registration_exchange(
     )
     .map_err(|err| format!("account register finish error: {:?}", err))?;
     util::write_to_secure_file("export_key.private", &client_export_key, true)
-        .expect("Could not write to file!");
+        .map_err(|_| "Could not write export_key to file!")?;
 
     let server_response: RegisterResponse = http::register_finish(
         "http://localhost:8000/register/finish",
@@ -86,7 +86,7 @@ fn execute_login_exchange(
         http::login_start(client_email, &base64::encode(credential_request_bytes))
             .map_err(|err| format!("Failed login_start: {:?}", err))?;
     let credential_response_bytes =
-        base64::decode(&credential_response.o).expect("Could not decode base64 str");
+        base64::decode(&credential_response.o).map_err(|_| "Could not decode base64 str")?;
 
     let (credential_finalization_bytes, client_session_key, client_export_key) =
         crypto::opaque::login_finish(
@@ -115,8 +115,8 @@ fn execute_login_verify(response: LoginResponse, client_session_key: &[u8]) -> R
     match response.o.as_str() {
         "Failed" => Err("login_finish error".to_string()),
         rand_challenge => {
-            let rand_bytes =
-                base64::decode(rand_challenge).expect("Could not base64 decode rand_challenge");
+            let rand_bytes = base64::decode(rand_challenge)
+                .map_err(|_| "Could not base64 decode rand_challenge")?;
             let nonce = create_login_verify_nonce(&response);
             let ciphertext = &crypto::encrypt_bytes(&nonce, &rand_bytes, client_session_key);
             let hash_bytes = Sha256::digest(ciphertext);

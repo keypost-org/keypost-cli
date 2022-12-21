@@ -42,11 +42,5 @@ pub fn read_file(file_name: &str, base64: bool) -> Result<Vec<u8>, Error> {
 }
 
 pub fn read_base64_file_path(file_path: &str) -> Result<String, Error> {
-    fs::read_to_string(&file_path).map_err(|err| {
-        println!(
-            "ERROR: Could not read file {}. Error: {:?}",
-            &file_path, err
-        );
-        err
-    })
+    fs::read_to_string(&file_path)
 }
