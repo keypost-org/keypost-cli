@@ -51,8 +51,8 @@ fn run_interactive() -> Result<(), Error> {
                         print_response(&response);
                     }
                     "3" => {
-                        //TODO Check for login session key before asking for email and password.
-                        let (email, _password) = get_email_password(&mut rl);
+                        //TODO Check for login session key before asking for email.
+                        let email = get_email(&mut rl);
                         let key_name = get_string("Name", &mut rl, false);
                         let export_key = util::read_file("export_key.private", true)
                             .expect("Error reading export_key");
@@ -60,8 +60,8 @@ fn run_interactive() -> Result<(), Error> {
                         print_response(&response);
                     }
                     "4" => {
-                        //TODO Check for login session key before asking for email and password.
-                        let (email, _password) = get_email_password(&mut rl);
+                        //TODO Check for login session key before asking for email.
+                        let email = get_email(&mut rl);
                         let key_name = get_string("Name", &mut rl, false);
                         let message = get_string("Secret", &mut rl, false);
                         let export_key = util::read_file("export_key.private", true)
@@ -116,10 +116,14 @@ fn print_menu() {
 }
 
 fn get_email_password(rl: &mut Editor<()>) -> (String, String) {
-    let email = get_string("Email", rl, false);
+    let email = get_email(rl);
     // TODO password length validation
     let password = get_string("Password", rl, true);
     (email, password)
+}
+
+fn get_email(rl: &mut Editor<()>) -> String {
+    get_string("Email", rl, false)
 }
 
 fn get_string(s1: &str, rl: &mut Editor<()>, obfuscate: bool) -> String {
