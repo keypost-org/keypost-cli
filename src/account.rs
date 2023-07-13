@@ -47,7 +47,7 @@ fn execute_registration_exchange(
     let server_response: RegisterResponse = http::register_start(
         "http://localhost:8000/register/start",
         &client_email,
-        &base64::encode(&registration_request_bytes),
+        &base64::encode(registration_request_bytes),
         &pkce_code_challenge,
     )
     .expect("Error getting response from register/start");
@@ -66,7 +66,7 @@ fn execute_registration_exchange(
         "http://localhost:8000/register/finish",
         server_response.id,
         &client_email,
-        &base64::encode(&client_message_bytes),
+        &base64::encode(client_message_bytes),
         &pkce_code_verify_b64,
     )
     .map_err(|err| format!("http register finish error: {:?}", err))?;

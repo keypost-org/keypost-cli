@@ -24,7 +24,7 @@ pub fn register_locker(
     )
     .map_err(|err| format!("Error with http::register_locker_start: {:?}", err))?;
     let registration_response_bytes =
-        base64::decode(&registration_response.o).expect("Could not decode base64 str");
+        base64::decode(registration_response.o).expect("Could not decode base64 str");
 
     // Server sends registration_response_bytes to client
     let client_finish_registration_result = crypto::opaque::register_locker_finish(
@@ -50,8 +50,8 @@ pub fn register_locker(
     let response = http::register_locker_finish(
         locker_id,
         email,
-        &base64::encode(&message_bytes),
-        &base64::encode(&ciphertext),
+        &base64::encode(message_bytes),
+        &base64::encode(ciphertext),
     );
 
     if response.is_err() {
