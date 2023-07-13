@@ -7,12 +7,9 @@ pub fn register_start(
     input: &str,
     pkce_code_challenge: &str,
 ) -> Result<RegisterResponse, reqwest::Error> {
-    let mut headers = HeaderMap::new();
-    headers.insert(reqwest::header::CONTENT_TYPE, "json".parse().unwrap());
-
     match reqwest::blocking::Client::new()
         .post(url)
-        .headers(headers)
+        .headers(create_headers())
         .json::<RegisterStartRequest>(&RegisterStartRequest {
             e: email.to_string(),
             i: input.to_string(),
@@ -32,12 +29,9 @@ pub fn register_finish(
     input: &str,
     pkce_code_verify: &str,
 ) -> Result<RegisterResponse, reqwest::Error> {
-    let mut headers = HeaderMap::new();
-    headers.insert(reqwest::header::CONTENT_TYPE, "json".parse().unwrap());
-
     match reqwest::blocking::Client::new()
         .post(url)
-        .headers(headers)
+        .headers(create_headers())
         .json::<RegisterFinishRequest>(&RegisterFinishRequest {
             id,
             e: email.to_string(),
@@ -52,12 +46,9 @@ pub fn register_finish(
 }
 
 pub fn login_start(email: &str, input: &str) -> Result<LoginResponse, reqwest::Error> {
-    let mut headers = HeaderMap::new();
-    headers.insert(reqwest::header::CONTENT_TYPE, "json".parse().unwrap());
-
     match reqwest::blocking::Client::new()
         .post("http://localhost:8000/login/start")
-        .headers(headers)
+        .headers(create_headers())
         .json::<LoginStartRequest>(&LoginStartRequest {
             e: email.to_string(),
             i: input.to_string(),
@@ -186,6 +177,6 @@ pub fn open_locker_finish(
 
 fn create_headers() -> HeaderMap {
     let mut headers = HeaderMap::new();
-    headers.insert(reqwest::header::CONTENT_TYPE, "json".parse().unwrap());
+    headers.insert(reqwest::header::CONTENT_TYPE, "application/json".parse().unwrap());
     headers
 }
