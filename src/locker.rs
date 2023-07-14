@@ -80,7 +80,7 @@ pub fn open_locker(locker_id: &str, email: &str, key: &[u8]) -> Result<String, S
     let result = crypto::opaque::open_locker_finish(
         client_login_start_result,
         key,
-        &base64::decode(credential_response.o).expect("Could not base64 decode!"),
+        &base64::decode(credential_response.o).map_err(|_| "Could not base64 decode!")?,
     );
     if result.is_err() {
         return Err(String::from("Incorrect password, please try again."));
@@ -107,4 +107,44 @@ pub fn open_locker(locker_id: &str, email: &str, key: &[u8]) -> Result<String, S
         ),
     );
     String::from_utf8(plaintext).map_err(|_| String::from("UTF8 error"))
+}
+
+pub fn delete_locker(locker_id: &str, email: &str, key: &[u8]) -> Result<String, String> {
+    // Flow to prove ownership should follow closely (if not exact) to open_locker()
+    let mut client_rng = crypto::opaque::rng();
+    let client_login_start_result = crypto::opaque::open_locker_start(&mut client_rng, key)
+        .map_err(|err| format!("Error in opaque::open_locker_start: {:?}", err))?;
+    let credential_request_bytes = client_login_start_result.message.serialize().to_vec();
+
+    // Client sends credential_request_bytes to server
+
+    let credential_response =
+        http::delete_locker_start(locker_id, email, &base64::encode(credential_request_bytes))
+            .map_err(|err| format!("Error in http::delete_locker_start: {:?}", err))?;
+    let nonce: u32 = credential_response.n;
+
+    // Server sends credential_response_bytes to client
+
+    let result = crypto::opaque::open_locker_finish(
+        client_login_start_result,
+        key,
+        &base64::decode(credential_response.o).expect("Could not base64 decode!"),
+    );
+    if result.is_err() {
+        return Err(String::from("Incorrect password, please try again."));
+    }
+    let client_login_finish_result = result.unwrap();
+    let credential_finalization_bytes = client_login_finish_result.message.serialize();
+
+    // Client sends credential_finalization_bytes to server
+
+    let delete_locker_response = http::delete_locker_finish(
+        locker_id,
+        email,
+        &base64::encode(credential_finalization_bytes),
+        nonce,
+    )
+    .map_err(|err| format!("Error in http::delete_locker_finish: {:?}", err))?;
+
+    Ok(delete_locker_response.o)
 }

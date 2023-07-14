@@ -18,6 +18,7 @@ Choose an option:
 2) Login as a user
 3) Get a key
 4) Put a key
+5) Delete a key
 ";
 
 fn init() {
@@ -69,7 +70,15 @@ fn run_interactive() -> Result<(), Error> {
                         let response = put_key(&email, &key_name, &export_key, message);
                         print_response(&response);
                     }
-                    //TODO Give option '5' to delete a key.
+                    "5" => {
+                        //TODO Check for login session key before asking for email.
+                        let email = get_email(&mut rl);
+                        let key_name = get_string("Name", &mut rl, false);
+                        let export_key = util::read_file("export_key.private", true)
+                            .expect("Error reading export_key");
+                        let response = delete_key(&email, &key_name, &export_key);
+                        print_response(&response);
+                    }
                     //TODO Give option '6' to export all secrets to a file.
                     _ => {
                         let err = Error::new(
@@ -105,6 +114,10 @@ fn put_key(email: &str, key_name: &str, export_key: &[u8], secret_message: Strin
 
 fn get_key(email: &str, key_name: &str, export_key: &[u8]) -> String {
     locker::open_locker(key_name, email, export_key).unwrap_or_else(|err| err)
+}
+
+fn delete_key(email: &str, key_name: &str, export_key: &[u8]) -> String {
+    locker::delete_locker(key_name, email, export_key).unwrap_or_else(|err| err)
 }
 
 fn print_response(r: &str) {

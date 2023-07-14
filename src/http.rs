@@ -175,8 +175,53 @@ pub fn open_locker_finish(
     }
 }
 
+pub fn delete_locker_start(
+    id: &str,
+    email: &str,
+    input: &str,
+) -> Result<DeleteLockerResponse, reqwest::Error> {
+    match reqwest::blocking::Client::new()
+        .post("http://localhost:8000/locker/delete/start")
+        .headers(create_headers())
+        .json::<DeleteLockerStartRequest>(&DeleteLockerStartRequest {
+            id: id.to_string(),
+            e: email.to_string(),
+            i: input.to_string(),
+        })
+        .send()
+    {
+        Ok(response) => response.json::<DeleteLockerResponse>(),
+        Err(err) => Err(err),
+    }
+}
+
+pub fn delete_locker_finish(
+    id: &str,
+    email: &str,
+    input: &str,
+    nonce: u32,
+) -> Result<DeleteLockerResponse, reqwest::Error> {
+    match reqwest::blocking::Client::new()
+        .post("http://localhost:8000/locker/delete/finish")
+        .headers(create_headers())
+        .json::<DeleteLockerFinishRequest>(&DeleteLockerFinishRequest {
+            id: id.to_string(),
+            e: email.to_string(),
+            i: input.to_string(),
+            n: nonce,
+        })
+        .send()
+    {
+        Ok(response) => response.json::<DeleteLockerResponse>(),
+        Err(err) => Err(err),
+    }
+}
+
 fn create_headers() -> HeaderMap {
     let mut headers = HeaderMap::new();
-    headers.insert(reqwest::header::CONTENT_TYPE, "application/json".parse().unwrap());
+    headers.insert(
+        reqwest::header::CONTENT_TYPE,
+        "application/json".parse().unwrap(),
+    );
     headers
 }
