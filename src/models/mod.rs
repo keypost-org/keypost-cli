@@ -88,3 +88,25 @@ pub struct OpenLockerResponse {
     pub o: String,
     pub n: u32,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DeleteLockerStartRequest {
+    pub id: String,
+    pub e: String,
+    pub i: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DeleteLockerFinishRequest {
+    pub id: String,
+    pub e: String,
+    pub i: String,
+    pub n: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct DeleteLockerResponse {
+    pub id: u32,
+    pub o: String,
+    pub n: u32,
+}

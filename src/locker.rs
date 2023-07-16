@@ -1,5 +1,9 @@
+use opaque_ke::ClientLoginStartResult;
+
 use crate::crypto;
+use crate::crypto::DefaultCipherSuite;
 use crate::http;
+use crate::models::*;
 
 // Password-based registration and encryption of client secret message between a client and server
 pub fn register_locker(
@@ -80,7 +84,7 @@ pub fn open_locker(locker_id: &str, email: &str, key: &[u8]) -> Result<String, S
     let result = crypto::opaque::open_locker_finish(
         client_login_start_result,
         key,
-        &base64::decode(credential_response.o).expect("Could not base64 decode!"),
+        &base64::decode(credential_response.o).map_err(|_| "Could not base64 decode!")?,
     );
     if result.is_err() {
         return Err(String::from("Incorrect password, please try again."));
@@ -107,4 +111,33 @@ pub fn open_locker(locker_id: &str, email: &str, key: &[u8]) -> Result<String, S
         ),
     );
     String::from_utf8(plaintext).map_err(|_| String::from("UTF8 error"))
+}
+
+pub fn delete_locker(locker_id: &str, email: &str, key: &[u8]) -> Result<String, String> {
+    // Flow to prove ownership is same as open_locker()
+    let mut client_rng = crypto::opaque::rng();
+    let start_result: ClientLoginStartResult<DefaultCipherSuite> =
+        crypto::opaque::open_locker_start(&mut client_rng, key)
+            .map_err(|err| format!("Error in opaque::open_locker_start: {:?}", err))?;
+    let credential_request_bytes = start_result.message.serialize().to_vec();
+
+    // Client sends credential_request_bytes to server and receives credential response back.
+    let response: DeleteLockerResponse =
+        http::delete_locker_start(locker_id, email, &base64::encode(credential_request_bytes))
+            .map_err(|err| format!("Error in http::delete_locker_start: {:?}", err))?;
+    let nonce: u32 = response.n;
+    let response_output: Vec<u8> =
+        base64::decode(response.o).map_err(|err| format!("Could not base64 decode: {:?}", err))?;
+
+    let finish_result: opaque_ke::ClientLoginFinishResult<DefaultCipherSuite> =
+        crypto::opaque::open_locker_finish(start_result, key, &response_output)
+            .map_err(|err| format!("Incorrect password, please try again. {:?}", err))?;
+    let finish_message = base64::encode(finish_result.message.serialize());
+
+    // Client sends finalized message to server which proves ownership to delete.
+    let delete_locker_response: DeleteLockerResponse =
+        http::delete_locker_finish(locker_id, email, &finish_message, nonce)
+            .map_err(|err| format!("Error in http::delete_locker_finish: {:?}", err))?;
+
+    Ok(delete_locker_response.o)
 }
