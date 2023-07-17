@@ -66,7 +66,7 @@ pub fn register_locker(
 }
 
 // Open the contents of a locker with a password between a client and server
-pub fn open_locker(locker_id: &str, email: &str, key: &[u8]) -> Result<String, String> {
+pub fn open_locker(locker_id: &str, email: &str, key: &[u8], auth: &str) -> Result<String, String> {
     let mut client_rng = crypto::opaque::rng();
     let client_login_start_result = crypto::opaque::open_locker_start(&mut client_rng, key)
         .map_err(|err| format!("Error in opaque::open_locker_start: {:?}", err))?;
@@ -74,9 +74,13 @@ pub fn open_locker(locker_id: &str, email: &str, key: &[u8]) -> Result<String, S
 
     // Client sends credential_request_bytes to server
 
-    let credential_response =
-        http::open_locker_start(locker_id, email, &base64::encode(credential_request_bytes))
-            .map_err(|err| format!("Error in http::open_locker_start: {:?}", err))?;
+    let credential_response = http::open_locker_start(
+        locker_id,
+        email,
+        &base64::encode(credential_request_bytes),
+        auth,
+    )
+    .map_err(|err| format!("Error in http::open_locker_start: {:?}", err))?;
     let nonce: u32 = credential_response.n;
 
     // Server sends credential_response_bytes to client

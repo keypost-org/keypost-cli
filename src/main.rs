@@ -57,7 +57,9 @@ fn run_interactive() -> Result<(), Error> {
                         let key_name = get_string("Name", &mut rl, false);
                         let export_key = util::read_file("export_key.private", true)
                             .expect("Error reading export_key");
-                        let response = get_key(&email, &key_name, &export_key);
+                        let session_id: String = util::read_base64_file_path("session_id.public")
+                            .expect("Error reading session_id");
+                        let response = get_key(&email, &key_name, &export_key, &session_id);
                         print_response(&response);
                     }
                     "4" => {
@@ -112,8 +114,8 @@ fn put_key(email: &str, key_name: &str, export_key: &[u8], secret_message: Strin
     locker::register_locker(key_name, email, export_key, secret_message).unwrap_or_else(|err| err)
 }
 
-fn get_key(email: &str, key_name: &str, export_key: &[u8]) -> String {
-    locker::open_locker(key_name, email, export_key).unwrap_or_else(|err| err)
+fn get_key(email: &str, key_name: &str, export_key: &[u8], session_id: &str) -> String {
+    locker::open_locker(key_name, email, export_key, session_id).unwrap_or_else(|err| err)
 }
 
 fn delete_key(email: &str, key_name: &str, export_key: &[u8]) -> String {

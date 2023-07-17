@@ -137,10 +137,11 @@ pub fn open_locker_start(
     id: &str,
     email: &str,
     input: &str,
+    auth: &str,
 ) -> Result<OpenLockerResponse, reqwest::Error> {
     match reqwest::blocking::Client::new()
         .post("http://localhost:8000/locker/open/start")
-        .headers(create_headers())
+        .headers(create_headers_with_auth(auth))
         .json::<OpenLockerStartRequest>(&OpenLockerStartRequest {
             id: id.to_string(),
             e: email.to_string(),
@@ -223,5 +224,12 @@ fn create_headers() -> HeaderMap {
         reqwest::header::CONTENT_TYPE,
         "application/json".parse().unwrap(),
     );
+    headers
+}
+
+fn create_headers_with_auth(auth: &str) -> HeaderMap {
+    let mut headers: HeaderMap = create_headers();
+    headers.insert(reqwest::header::AUTHORIZATION, auth.parse().unwrap());
+    println!("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ {:?}", headers);
     headers
 }
