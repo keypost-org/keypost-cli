@@ -46,10 +46,7 @@ fn run_interactive() -> Result<(), Error> {
                         print_response(&response);
                     }
                     "2" => {
-                        //TODO Check for login session key before asking for email and password.
-                        let (email, password) = get_email_password(&mut rl);
-                        let response = account_login(email, password);
-                        print_response(&response);
+                        execute_login_cmd(&mut rl);
                     }
                     "3" => {
                         //TODO Check for login session key before asking for email.
@@ -59,8 +56,19 @@ fn run_interactive() -> Result<(), Error> {
                             .expect("Error reading export_key");
                         let session_id: String = util::read_base64_file_path("session_id.public")
                             .expect("Error reading session_id");
-                        let response = get_key(&email, &key_name, &export_key, &session_id);
-                        print_response(&response);
+                        match get_key(&email, &key_name, &export_key, &session_id) {
+                            Ok(response) => print_response(&response),
+                            Err(error) => {
+                                if &error == "unauthorized" {
+                                    print_response(
+                                        "Your session may have expired. Please login again:",
+                                    );
+                                    execute_login_cmd(&mut rl);
+                                } else {
+                                    print_response(&error);
+                                }
+                            }
+                        }
                     }
                     "4" => {
                         //TODO Check for login session key before asking for email.
@@ -69,7 +77,10 @@ fn run_interactive() -> Result<(), Error> {
                         let message = get_string("Secret", &mut rl, false);
                         let export_key = util::read_file("export_key.private", true)
                             .expect("Error reading export_key");
-                        let response = put_key(&email, &key_name, &export_key, message);
+                        let session_id: String = util::read_base64_file_path("session_id.public")
+                            .expect("Error reading session_id");
+                        let response =
+                            put_key(&email, &key_name, &export_key, message, &session_id);
                         print_response(&response);
                     }
                     "5" => {
@@ -78,7 +89,9 @@ fn run_interactive() -> Result<(), Error> {
                         let key_name = get_string("Name", &mut rl, false);
                         let export_key = util::read_file("export_key.private", true)
                             .expect("Error reading export_key");
-                        let response = delete_key(&email, &key_name, &export_key);
+                        let session_id: String = util::read_base64_file_path("session_id.public")
+                            .expect("Error reading session_id");
+                        let response = delete_key(&email, &key_name, &export_key, &session_id);
                         print_response(&response);
                     }
                     //TODO Give option '6' to export all secrets to a file.
@@ -99,6 +112,12 @@ fn run_interactive() -> Result<(), Error> {
     }
 }
 
+fn execute_login_cmd(rl: &mut Editor<()>) {
+    let (email, password) = get_email_password(rl);
+    let response = account_login(email, password);
+    print_response(&response);
+}
+
 fn account_registration(registration_key: String, email: String, password: String) -> String {
     account::registration(registration_key, email, password).unwrap_or_else(|err| err)
 }
@@ -110,16 +129,28 @@ fn account_login(email: String, password: String) -> String {
     }
 }
 
-fn put_key(email: &str, key_name: &str, export_key: &[u8], secret_message: String) -> String {
-    locker::register_locker(key_name, email, export_key, secret_message).unwrap_or_else(|err| err)
+fn put_key(
+    email: &str,
+    key_name: &str,
+    export_key: &[u8],
+    secret_message: String,
+    session_id: &str,
+) -> String {
+    locker::register_locker(key_name, email, export_key, secret_message, session_id)
+        .unwrap_or_else(|err| err)
 }
 
-fn get_key(email: &str, key_name: &str, export_key: &[u8], session_id: &str) -> String {
-    locker::open_locker(key_name, email, export_key, session_id).unwrap_or_else(|err| err)
+fn get_key(
+    email: &str,
+    key_name: &str,
+    export_key: &[u8],
+    session_id: &str,
+) -> Result<String, String> {
+    locker::open_locker(key_name, email, export_key, session_id)
 }
 
-fn delete_key(email: &str, key_name: &str, export_key: &[u8]) -> String {
-    locker::delete_locker(key_name, email, export_key).unwrap_or_else(|err| err)
+fn delete_key(email: &str, key_name: &str, export_key: &[u8], session_id: &str) -> String {
+    locker::delete_locker(key_name, email, export_key, session_id).unwrap_or_else(|err| err)
 }
 
 fn print_response(r: &str) {

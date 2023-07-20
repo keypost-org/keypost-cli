@@ -11,6 +11,7 @@ pub fn register_locker(
     email: &str,
     key: &[u8],
     secret_message: String,
+    auth: &str,
 ) -> Result<String, String> {
     let mut client_rng = crypto::opaque::rng();
     let client_registration_start_result = crypto::register_locker_start(&mut client_rng, key)
@@ -25,6 +26,7 @@ pub fn register_locker(
         locker_id,
         email,
         &base64::encode(registration_request_bytes),
+        auth,
     )
     .map_err(|err| format!("Error with http::register_locker_start: {:?}", err))?;
     let registration_response_bytes =
@@ -56,6 +58,7 @@ pub fn register_locker(
         email,
         &base64::encode(message_bytes),
         &base64::encode(ciphertext),
+        auth,
     );
 
     if response.is_err() {
@@ -81,6 +84,10 @@ pub fn open_locker(locker_id: &str, email: &str, key: &[u8], auth: &str) -> Resu
         auth,
     )
     .map_err(|err| format!("Error in http::open_locker_start: {:?}", err))?;
+    //TODO yuk! It's just temporart until I can implement a crate like github.com/dtolnay/thiserror
+    if credential_response.o == "unauthorized" {
+        return Err("unauthorized".to_string());
+    }
     let nonce: u32 = credential_response.n;
 
     // Server sends credential_response_bytes to client
@@ -103,6 +110,7 @@ pub fn open_locker(locker_id: &str, email: &str, key: &[u8], auth: &str) -> Resu
         email,
         &base64::encode(credential_finalization_bytes),
         nonce,
+        auth,
     )
     .map_err(|err| format!("Error in http::open_locker_finish: {:?}", err))?;
 
@@ -117,7 +125,12 @@ pub fn open_locker(locker_id: &str, email: &str, key: &[u8], auth: &str) -> Resu
     String::from_utf8(plaintext).map_err(|_| String::from("UTF8 error"))
 }
 
-pub fn delete_locker(locker_id: &str, email: &str, key: &[u8]) -> Result<String, String> {
+pub fn delete_locker(
+    locker_id: &str,
+    email: &str,
+    key: &[u8],
+    auth: &str,
+) -> Result<String, String> {
     // Flow to prove ownership is same as open_locker()
     let mut client_rng = crypto::opaque::rng();
     let start_result: ClientLoginStartResult<DefaultCipherSuite> =
@@ -126,9 +139,13 @@ pub fn delete_locker(locker_id: &str, email: &str, key: &[u8]) -> Result<String,
     let credential_request_bytes = start_result.message.serialize().to_vec();
 
     // Client sends credential_request_bytes to server and receives credential response back.
-    let response: DeleteLockerResponse =
-        http::delete_locker_start(locker_id, email, &base64::encode(credential_request_bytes))
-            .map_err(|err| format!("Error in http::delete_locker_start: {:?}", err))?;
+    let response: DeleteLockerResponse = http::delete_locker_start(
+        locker_id,
+        email,
+        &base64::encode(credential_request_bytes),
+        auth,
+    )
+    .map_err(|err| format!("Error in http::delete_locker_start: {:?}", err))?;
     let nonce: u32 = response.n;
     let response_output: Vec<u8> =
         base64::decode(response.o).map_err(|err| format!("Could not base64 decode: {:?}", err))?;
@@ -140,7 +157,7 @@ pub fn delete_locker(locker_id: &str, email: &str, key: &[u8]) -> Result<String,
 
     // Client sends finalized message to server which proves ownership to delete.
     let delete_locker_response: DeleteLockerResponse =
-        http::delete_locker_finish(locker_id, email, &finish_message, nonce)
+        http::delete_locker_finish(locker_id, email, &finish_message, nonce, auth)
             .map_err(|err| format!("Error in http::delete_locker_finish: {:?}", err))?;
 
     Ok(delete_locker_response.o)

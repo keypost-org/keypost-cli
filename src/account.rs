@@ -123,7 +123,6 @@ fn execute_login_verify(response: LoginResponse, client_session_key: &[u8]) -> R
             let hash = base64::encode(hash_bytes);
             let server_response = http::login_verify(response.id, &hash)
                 .map_err(|err| format!("Error during login_verify request: {:?}", err))?;
-            println!("$$$$$$$$$$$$$ NONCE:{}", &response.id);
             let session_id = crypto::encrypt_bytes_with_u32_nonce(
                 &response.id,
                 &[response.id.to_be_bytes()].concat(),

@@ -1,6 +1,23 @@
 use crate::models::*;
 use reqwest::header::HeaderMap;
 
+//TODO This struct, or a version of it, might come in handy once an error crate is implemented
+// struct ApiError {
+//     pub status: u16,
+//     pub message: String,
+//     pub error: Option<reqwest::Error>,
+// }
+
+// impl ApiError {
+//     pub fn new(status: u16, message: String, error: Option<reqwest::Error>) -> Self {
+//         ApiError {
+//             status,
+//             message,
+//             error
+//         }
+//     }
+// }
+
 pub fn register_start(
     url: &str,
     email: &str,
@@ -95,10 +112,11 @@ pub fn register_locker_start(
     id: &str,
     email: &str,
     input: &str,
+    auth: &str,
 ) -> Result<RegisterLockerResponse, reqwest::Error> {
     match reqwest::blocking::Client::new()
         .post("http://localhost:8000/locker/register/start")
-        .headers(create_headers())
+        .headers(create_headers_with_auth(auth))
         .json::<RegisterLockerStartRequest>(&RegisterLockerStartRequest {
             id: id.to_string(),
             e: email.to_string(),
@@ -116,10 +134,11 @@ pub fn register_locker_finish(
     email: &str,
     input: &str,
     ciphertext: &str,
+    auth: &str,
 ) -> Result<RegisterLockerResponse, reqwest::Error> {
     match reqwest::blocking::Client::new()
         .post("http://localhost:8000/locker/register/finish")
-        .headers(create_headers())
+        .headers(create_headers_with_auth(auth))
         .json::<RegisterLockerFinishRequest>(&RegisterLockerFinishRequest {
             id: id.to_string(),
             e: email.to_string(),
@@ -149,7 +168,22 @@ pub fn open_locker_start(
         })
         .send()
     {
-        Ok(response) => response.json::<OpenLockerResponse>(),
+        Ok(response) => {
+            match response.status() {
+                //TODO This ugly shit is temporary until I can implement a crate like github.com/dtolnay/thiserror
+                reqwest::StatusCode::OK => response.json::<OpenLockerResponse>(),
+                reqwest::StatusCode::UNAUTHORIZED => Ok(OpenLockerResponse {
+                    id: 0,
+                    o: "unauthorized".to_string(),
+                    n: 0,
+                }),
+                _ => Ok(OpenLockerResponse {
+                    id: 0,
+                    o: "unknown".to_string(),
+                    n: 0,
+                }),
+            }
+        }
         Err(err) => Err(err),
     }
 }
@@ -159,10 +193,11 @@ pub fn open_locker_finish(
     email: &str,
     input: &str,
     nonce: u32,
+    auth: &str,
 ) -> Result<OpenLockerResponse, reqwest::Error> {
     match reqwest::blocking::Client::new()
         .post("http://localhost:8000/locker/open/finish")
-        .headers(create_headers())
+        .headers(create_headers_with_auth(auth))
         .json::<OpenLockerFinishRequest>(&OpenLockerFinishRequest {
             id: id.to_string(),
             e: email.to_string(),
@@ -180,10 +215,11 @@ pub fn delete_locker_start(
     id: &str,
     email: &str,
     input: &str,
+    auth: &str,
 ) -> Result<DeleteLockerResponse, reqwest::Error> {
     match reqwest::blocking::Client::new()
         .post("http://localhost:8000/locker/delete/start")
-        .headers(create_headers())
+        .headers(create_headers_with_auth(auth))
         .json::<DeleteLockerStartRequest>(&DeleteLockerStartRequest {
             id: id.to_string(),
             e: email.to_string(),
@@ -201,10 +237,11 @@ pub fn delete_locker_finish(
     email: &str,
     input: &str,
     nonce: u32,
+    auth: &str,
 ) -> Result<DeleteLockerResponse, reqwest::Error> {
     match reqwest::blocking::Client::new()
         .post("http://localhost:8000/locker/delete/finish")
-        .headers(create_headers())
+        .headers(create_headers_with_auth(auth))
         .json::<DeleteLockerFinishRequest>(&DeleteLockerFinishRequest {
             id: id.to_string(),
             e: email.to_string(),
@@ -230,6 +267,5 @@ fn create_headers() -> HeaderMap {
 fn create_headers_with_auth(auth: &str) -> HeaderMap {
     let mut headers: HeaderMap = create_headers();
     headers.insert(reqwest::header::AUTHORIZATION, auth.parse().unwrap());
-    println!("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ {:?}", headers);
     headers
 }
