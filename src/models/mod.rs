@@ -89,6 +89,30 @@ pub struct OpenLockerResponse {
     pub n: u32,
 }
 
+impl OpenLockerResponse {
+    pub fn new(response: reqwest::blocking::Response) -> OpenLockerResponse {
+        response
+            .json::<OpenLockerResponse>()
+            .expect("Could not deserialize JSON response: OpenLockerResponse")
+    }
+
+    pub fn unauthorized(_response: reqwest::blocking::Response) -> OpenLockerResponse {
+        OpenLockerResponse {
+            id: 0,
+            o: "unauthorized".to_string(),
+            n: 0,
+        }
+    }
+
+    pub fn unknown(_response: reqwest::blocking::Response) -> OpenLockerResponse {
+        OpenLockerResponse {
+            id: 0,
+            o: "unknown".to_string(),
+            n: 0,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DeleteLockerStartRequest {
     pub id: String,

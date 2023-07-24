@@ -168,22 +168,11 @@ pub fn open_locker_start(
         })
         .send()
     {
-        Ok(response) => {
-            match response.status() {
-                //TODO This ugly shit is temporary until I can implement a crate like github.com/dtolnay/thiserror
-                reqwest::StatusCode::OK => response.json::<OpenLockerResponse>(),
-                reqwest::StatusCode::UNAUTHORIZED => Ok(OpenLockerResponse {
-                    id: 0,
-                    o: "unauthorized".to_string(),
-                    n: 0,
-                }),
-                _ => Ok(OpenLockerResponse {
-                    id: 0,
-                    o: "unknown".to_string(),
-                    n: 0,
-                }),
-            }
-        }
+        Ok(response) => match response.status() {
+            reqwest::StatusCode::OK => Ok(OpenLockerResponse::new(response)),
+            reqwest::StatusCode::UNAUTHORIZED => Ok(OpenLockerResponse::unauthorized(response)),
+            _ => Ok(OpenLockerResponse::unknown(response)),
+        },
         Err(err) => Err(err),
     }
 }
