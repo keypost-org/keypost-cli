@@ -31,16 +31,19 @@ pub fn write_to_secure_file(file_name: &str, bytes: &[u8], base64: bool) -> Resu
 }
 
 pub fn read_file(file_name: &str, base64: bool) -> Result<Vec<u8>, Error> {
-    let file_path = default_dir() + "/" + file_name;
     match base64 {
-        true => match read_base64_file_path(&file_path) {
+        true => match read_base64_file_path(file_name) {
             Ok(s) => Ok(base64::decode(s).expect("Could not base64 decode bytes!")),
             Err(err) => Err(err),
         },
-        false => fs::read(&file_path),
+        false => {
+            let file_path = default_dir() + "/" + file_name;
+            fs::read(file_path)
+        }
     }
 }
 
-pub fn read_base64_file_path(file_path: &str) -> Result<String, Error> {
+pub fn read_base64_file_path(file_name: &str) -> Result<String, Error> {
+    let file_path = default_dir() + "/" + file_name;
     fs::read_to_string(file_path)
 }

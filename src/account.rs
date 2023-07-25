@@ -117,25 +117,23 @@ fn execute_login_verify(response: LoginResponse, client_session_key: &[u8]) -> R
         rand_challenge => {
             let rand_bytes = base64::decode(rand_challenge)
                 .map_err(|_| "Could not base64 decode rand_challenge")?;
-            let nonce = create_login_verify_nonce(&response);
-            let ciphertext = &crypto::encrypt_bytes(&nonce, &rand_bytes, client_session_key);
+            let nonce = crypto::expand_u32_nonce(&response.id);
+            let ciphertext = &crypto::encrypt_bytes(&nonce, client_session_key, &rand_bytes);
             let hash_bytes = Sha256::digest(ciphertext);
             let hash = base64::encode(hash_bytes);
             let server_response = http::login_verify(response.id, &hash)
                 .map_err(|err| format!("Error during login_verify request: {:?}", err))?;
+            let session_id = crypto::encrypt_bytes_with_u32_nonce(
+                &response.id,
+                client_session_key,
+                &[response.id.to_be_bytes()].concat(),
+            );
+            util::write_to_secure_file("session_id.public", &session_id, true)
+                .map_err(|err| format!("Could not write session_id to file: {:?}", err))?;
             match server_response.o.as_str() {
                 "Success" => Ok(()),
                 _ => Err("login_verify error".to_string()),
             }
         }
     }
-}
-
-fn create_login_verify_nonce(response: &LoginResponse) -> Vec<u8> {
-    [
-        response.id.to_be_bytes(),
-        response.id.to_be_bytes(),
-        response.id.to_be_bytes(),
-    ]
-    .concat()
 }
