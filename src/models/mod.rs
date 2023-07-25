@@ -89,6 +89,7 @@ pub struct OpenLockerResponse {
     pub n: u32,
 }
 
+//TODO Either need to parameterize response structs using generics or all to share the same struct to DRY-up.
 impl OpenLockerResponse {
     pub fn new(response: reqwest::blocking::Response) -> OpenLockerResponse {
         response
@@ -106,6 +107,52 @@ impl OpenLockerResponse {
 
     pub fn unknown(_response: reqwest::blocking::Response) -> OpenLockerResponse {
         OpenLockerResponse {
+            id: 0,
+            o: "unknown".to_string(),
+            n: 0,
+        }
+    }
+}
+
+impl RegisterLockerResponse {
+    pub fn new(response: reqwest::blocking::Response) -> RegisterLockerResponse {
+        response
+            .json::<RegisterLockerResponse>()
+            .expect("Could not deserialize JSON response: RegisterLockerResponse")
+    }
+
+    pub fn unauthorized(_response: reqwest::blocking::Response) -> RegisterLockerResponse {
+        RegisterLockerResponse {
+            id: 0,
+            o: "unauthorized".to_string(),
+        }
+    }
+
+    pub fn unknown(_response: reqwest::blocking::Response) -> RegisterLockerResponse {
+        RegisterLockerResponse {
+            id: 0,
+            o: "unknown".to_string(),
+        }
+    }
+}
+
+impl DeleteLockerResponse {
+    pub fn new(response: reqwest::blocking::Response) -> DeleteLockerResponse {
+        response
+            .json::<DeleteLockerResponse>()
+            .expect("Could not deserialize JSON response: DeleteLockerResponse")
+    }
+
+    pub fn unauthorized(_response: reqwest::blocking::Response) -> DeleteLockerResponse {
+        DeleteLockerResponse {
+            id: 0,
+            o: "unauthorized".to_string(),
+            n: 0,
+        }
+    }
+
+    pub fn unknown(_response: reqwest::blocking::Response) -> DeleteLockerResponse {
+        DeleteLockerResponse {
             id: 0,
             o: "unknown".to_string(),
             n: 0,

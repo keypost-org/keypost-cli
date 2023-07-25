@@ -29,6 +29,9 @@ pub fn register_locker(
         auth,
     )
     .map_err(|err| format!("Error with http::register_locker_start: {:?}", err))?;
+    if registration_response.o == "unauthorized" {
+        return Err("unauthorized".to_string());
+    }
     let registration_response_bytes =
         base64::decode(registration_response.o).expect("Could not decode base64 str");
 
@@ -59,16 +62,17 @@ pub fn register_locker(
         &base64::encode(message_bytes),
         &base64::encode(ciphertext),
         auth,
-    );
-
-    if response.is_err() {
-        return Err(format!("Error registering locker: {:?}", response.err()));
+    )
+    .map_err(|err| format!("Error with RegisterLockerResponse: {:?}", err))?;
+    if response.o == "unauthorized" {
+        return Err("unauthorized".to_string());
     }
 
-    Ok(response.unwrap().o)
+    Ok(response.o)
 }
 
 // Open the contents of a locker with a password between a client and server
+//FIXME Not handling locker contents NotFound from server.
 pub fn open_locker(locker_id: &str, email: &str, key: &[u8], auth: &str) -> Result<String, String> {
     let mut client_rng = crypto::opaque::rng();
     let client_login_start_result = crypto::opaque::open_locker_start(&mut client_rng, key)
@@ -113,7 +117,9 @@ pub fn open_locker(locker_id: &str, email: &str, key: &[u8], auth: &str) -> Resu
         auth,
     )
     .map_err(|err| format!("Error in http::open_locker_finish: {:?}", err))?;
-
+    if encrypted_locker_contents.o == "unauthorized" {
+        return Err("unauthorized".to_string());
+    }
     // Client decrypts contents of locker, first under the session key, and then
     let plaintext = crypto::decrypt_locker(
         &client_login_finish_result.export_key,
@@ -146,6 +152,9 @@ pub fn delete_locker(
         auth,
     )
     .map_err(|err| format!("Error in http::delete_locker_start: {:?}", err))?;
+    if response.o == "unauthorized" {
+        return Err("unauthorized".to_string());
+    }
     let nonce: u32 = response.n;
     let response_output: Vec<u8> =
         base64::decode(response.o).map_err(|err| format!("Could not base64 decode: {:?}", err))?;
@@ -159,6 +168,9 @@ pub fn delete_locker(
     let delete_locker_response: DeleteLockerResponse =
         http::delete_locker_finish(locker_id, email, &finish_message, nonce, auth)
             .map_err(|err| format!("Error in http::delete_locker_finish: {:?}", err))?;
+    if delete_locker_response.o == "unauthorized" {
+        return Err("unauthorized".to_string());
+    }
 
     Ok(delete_locker_response.o)
 }

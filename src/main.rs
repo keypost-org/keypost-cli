@@ -50,6 +50,8 @@ fn run_interactive() -> Result<(), Error> {
                     }
                     "3" => {
                         //TODO Check for login session key before asking for email.
+                        //TODO A way to not always pass email in everyday operational commands (i.e. anything not registration or login).
+                        //     Maybe https://github.com/facebook/opaque-ke/blob/556f6c2bd43123b20110f0a9bace8c5f91643328/src/lib.rs#L706-L722
                         let email = get_email(&mut rl);
                         let key_name = get_string("Name", &mut rl, false);
                         let export_key = util::read_file("export_key.private", true)
@@ -58,16 +60,7 @@ fn run_interactive() -> Result<(), Error> {
                             .expect("Error reading session_id");
                         match get_key(&email, &key_name, &export_key, &session_id) {
                             Ok(response) => print_response(&response),
-                            Err(error) => {
-                                if &error == "unauthorized" {
-                                    print_response(
-                                        "Your session may have expired. Please login again:",
-                                    );
-                                    execute_login_cmd(&mut rl);
-                                } else {
-                                    print_response(&error);
-                                }
-                            }
+                            Err(error) => handle_error_response(&mut rl, error),
                         }
                     }
                     "4" => {
@@ -79,9 +72,10 @@ fn run_interactive() -> Result<(), Error> {
                             .expect("Error reading export_key");
                         let session_id: String = util::read_base64_file_path("session_id.public")
                             .expect("Error reading session_id");
-                        let response =
-                            put_key(&email, &key_name, &export_key, message, &session_id);
-                        print_response(&response);
+                        match put_key(&email, &key_name, &export_key, message, &session_id) {
+                            Ok(response) => print_response(&response),
+                            Err(error) => handle_error_response(&mut rl, error),
+                        }
                     }
                     "5" => {
                         //TODO Check for login session key before asking for email.
@@ -91,8 +85,10 @@ fn run_interactive() -> Result<(), Error> {
                             .expect("Error reading export_key");
                         let session_id: String = util::read_base64_file_path("session_id.public")
                             .expect("Error reading session_id");
-                        let response = delete_key(&email, &key_name, &export_key, &session_id);
-                        print_response(&response);
+                        match delete_key(&email, &key_name, &export_key, &session_id) {
+                            Ok(response) => print_response(&response),
+                            Err(error) => handle_error_response(&mut rl, error),
+                        }
                     }
                     //TODO Give option '6' to export all secrets to a file.
                     _ => {
@@ -135,9 +131,8 @@ fn put_key(
     export_key: &[u8],
     secret_message: String,
     session_id: &str,
-) -> String {
+) -> Result<String, String> {
     locker::register_locker(key_name, email, export_key, secret_message, session_id)
-        .unwrap_or_else(|err| err)
 }
 
 fn get_key(
@@ -149,12 +144,26 @@ fn get_key(
     locker::open_locker(key_name, email, export_key, session_id)
 }
 
-fn delete_key(email: &str, key_name: &str, export_key: &[u8], session_id: &str) -> String {
-    locker::delete_locker(key_name, email, export_key, session_id).unwrap_or_else(|err| err)
+fn delete_key(
+    email: &str,
+    key_name: &str,
+    export_key: &[u8],
+    session_id: &str,
+) -> Result<String, String> {
+    locker::delete_locker(key_name, email, export_key, session_id)
 }
 
 fn print_response(r: &str) {
     println!("{}", r);
+}
+
+fn handle_error_response(rl: &mut Editor<()>, error: String) {
+    if &error == "unauthorized" {
+        print_response("Your session may have expired. Please login again:");
+        execute_login_cmd(rl);
+    } else {
+        print_response(&error);
+    }
 }
 
 fn print_menu() {

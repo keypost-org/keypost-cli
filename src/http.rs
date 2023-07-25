@@ -124,7 +124,11 @@ pub fn register_locker_start(
         })
         .send()
     {
-        Ok(response) => response.json::<RegisterLockerResponse>(),
+        Ok(response) => match response.status() {
+            reqwest::StatusCode::OK => Ok(RegisterLockerResponse::new(response)),
+            reqwest::StatusCode::UNAUTHORIZED => Ok(RegisterLockerResponse::unauthorized(response)),
+            _ => Ok(RegisterLockerResponse::unknown(response)),
+        },
         Err(err) => Err(err),
     }
 }
@@ -147,7 +151,11 @@ pub fn register_locker_finish(
         })
         .send()
     {
-        Ok(response) => response.json::<RegisterLockerResponse>(),
+        Ok(response) => match response.status() {
+            reqwest::StatusCode::OK => Ok(RegisterLockerResponse::new(response)),
+            reqwest::StatusCode::UNAUTHORIZED => Ok(RegisterLockerResponse::unauthorized(response)),
+            _ => Ok(RegisterLockerResponse::unknown(response)),
+        },
         Err(err) => Err(err),
     }
 }
@@ -195,7 +203,11 @@ pub fn open_locker_finish(
         })
         .send()
     {
-        Ok(response) => response.json::<OpenLockerResponse>(),
+        Ok(response) => match response.status() {
+            reqwest::StatusCode::OK => Ok(OpenLockerResponse::new(response)),
+            reqwest::StatusCode::UNAUTHORIZED => Ok(OpenLockerResponse::unauthorized(response)),
+            _ => Ok(OpenLockerResponse::unknown(response)),
+        },
         Err(err) => Err(err),
     }
 }
@@ -216,7 +228,11 @@ pub fn delete_locker_start(
         })
         .send()
     {
-        Ok(response) => response.json::<DeleteLockerResponse>(),
+        Ok(response) => match response.status() {
+            reqwest::StatusCode::OK => Ok(DeleteLockerResponse::new(response)),
+            reqwest::StatusCode::UNAUTHORIZED => Ok(DeleteLockerResponse::unauthorized(response)),
+            _ => Ok(DeleteLockerResponse::unknown(response)),
+        },
         Err(err) => Err(err),
     }
 }
@@ -239,7 +255,11 @@ pub fn delete_locker_finish(
         })
         .send()
     {
-        Ok(response) => response.json::<DeleteLockerResponse>(),
+        Ok(response) => match response.status() {
+            reqwest::StatusCode::OK => Ok(DeleteLockerResponse::new(response)),
+            reqwest::StatusCode::UNAUTHORIZED => Ok(DeleteLockerResponse::unauthorized(response)),
+            _ => Ok(DeleteLockerResponse::unknown(response)),
+        },
         Err(err) => Err(err),
     }
 }
