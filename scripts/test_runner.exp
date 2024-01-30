@@ -1,0 +1,51 @@
+#!/bin/expect -f
+
+set timeout 5
+spawn cargo run
+match_max 100000
+sleep 1
+expect -ex "*
+\r
+Choose an option:\r
+\r
+1) Register a user\r
+2) Login as a user\r
+3) Get a key
+4) Put a key
+5) Delete a key
+\r
+"
+
+sleep .1
+send -- "2\r"
+expect -ex "Email: \r"
+sleep .1
+send -- "foo@bar.com\r"
+expect -ex "Password: "
+send -- "foobar1234\r"
+sleep .1
+expect -ex "Login success!"
+
+sleep .1
+send -- "4\r"
+expect -ex "Name: "
+send -- "FOO\r"
+expect -ex "Secret: "
+send -- "BAR\r"
+expect -ex "Success"
+
+sleep .1
+send -- "3\r"
+expect -ex "Name: "
+send -- "FOO\r"
+expect -ex "BAR"
+
+sleep .1
+send -- "5\r"
+expect -ex "Name: "
+send -- "FOO\r"
+expect -ex "Key deleted!"
+
+sleep .1
+send -- ""
+expect eof
