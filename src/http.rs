@@ -342,9 +342,8 @@ fn create_error_response<T>(response: Response) -> Result<T, CliError> {
         .bytes()
         .map_err(CliError::ApiResponseReqwestError)?
         .to_vec();
-    let resp_str = String::from_utf8(resp_bytes).map_err(|err| {
-        println!("!!!COULD NOT PARSE RESPONSE BYTES!!! {:?}", err); //FIXME debugging, remove me later
-        CliError::ApiResponseParseError(String::from("Could not parse response bytes!"))
+    let resp_str = String::from_utf8(resp_bytes).map_err(|_err: std::string::FromUtf8Error| {
+        CliError::ApiResponseParseError(String::from("Could not parse response bytes into String!"))
     })?;
     Err(CliError::ApiResponseUnknownError(resp_str))
 }

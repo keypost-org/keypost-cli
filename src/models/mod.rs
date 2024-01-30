@@ -3,9 +3,10 @@ mod error;
 pub use error::CliError;
 use serde::{Deserialize, Serialize};
 
+// TODO Decide whether to use one request struct to simplify and make code reusable.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CliRequest {
-    pub id: u32,
+    pub id: u32,    // id
     pub e: String,  // email
     pub i: String,  // protocol input
     pub ch: String, // PKCE challenge
@@ -14,9 +15,10 @@ pub struct CliRequest {
     pub n: u32,     // nonce
 }
 
+// TODO Decide whether to use one response struct to simplify and make code reusable.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CliResponse {
-    pub id: u32,
+    pub id: u32,   // id
     pub o: String, // protocol output
     pub n: u32,    // nonce
 }
