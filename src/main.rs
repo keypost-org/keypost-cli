@@ -49,42 +49,37 @@ fn run_interactive() -> Result<(), Error> {
                         execute_login_cmd(&mut rl);
                     }
                     "3" => {
-                        //TODO Check for login session key before asking for email.
-                        //TODO A way to not always pass email in everyday operational commands (i.e. anything not registration or login).
-                        //     Maybe https://github.com/facebook/opaque-ke/blob/556f6c2bd43123b20110f0a9bace8c5f91643328/src/lib.rs#L706-L722
-                        let email = get_email(&mut rl);
+                        //TODO Better way to not use email on server-side? (i.e. server stores email in plaintext)
+                        // Maybe custom identifiers (ClientRegistrationFinishParameters):
+                        //  https://github.com/facebook/opaque-ke/blob/556f6c2bd43123b20110f0a9bace8c5f91643328/src/lib.rs#L706-L722
                         let key_name = get_string("Name", &mut rl, false);
                         let export_key = util::read_file("export_key.private", true)
                             .expect("Error reading export_key");
-                        let session_id: String = util::read_base64_file_path("session_id.public")
-                            .expect("Error reading session_id");
+                        let (session_id, email) =
+                            util::read_session_file().expect("Error reading session file");
                         match get_key(&email, &key_name, &export_key, &session_id) {
                             Ok(response) => print_response(&response),
                             Err(error) => handle_error_response(&mut rl, error),
                         }
                     }
                     "4" => {
-                        //TODO Check for login session key before asking for email.
-                        let email = get_email(&mut rl);
                         let key_name = get_string("Name", &mut rl, false);
                         let message = get_string("Secret", &mut rl, false);
                         let export_key = util::read_file("export_key.private", true)
                             .expect("Error reading export_key");
-                        let session_id: String = util::read_base64_file_path("session_id.public")
-                            .expect("Error reading session_id");
+                        let (session_id, email) =
+                            util::read_session_file().expect("Error reading session file");
                         match put_key(&email, &key_name, &export_key, message, &session_id) {
                             Ok(response) => print_response(&response),
                             Err(error) => handle_error_response(&mut rl, error),
                         }
                     }
                     "5" => {
-                        //TODO Check for login session key before asking for email.
-                        let email = get_email(&mut rl);
                         let key_name = get_string("Name", &mut rl, false);
                         let export_key = util::read_file("export_key.private", true)
                             .expect("Error reading export_key");
-                        let session_id: String = util::read_base64_file_path("session_id.public")
-                            .expect("Error reading session_id");
+                        let (session_id, email) =
+                            util::read_session_file().expect("Error reading session file");
                         match delete_key(&email, &key_name, &export_key, &session_id) {
                             Ok(response) => print_response(&response),
                             Err(error) => handle_error_response(&mut rl, error),

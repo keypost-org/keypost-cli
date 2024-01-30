@@ -15,7 +15,7 @@ pub fn register_locker(
 ) -> Result<String, String> {
     let mut client_rng = crypto::opaque::rng();
     let client_registration_start_result = crypto::register_locker_start(&mut client_rng, key)
-        .map_err(|err| format!("Error with crypto::register_locker_start: {:?}", err))?;
+        .map_err(|err| format!("Error from crypto::register_locker_start: {:?}", err))?;
     let registration_request_bytes = client_registration_start_result
         .message
         .serialize()
@@ -28,7 +28,7 @@ pub fn register_locker(
         &base64::encode(registration_request_bytes),
         auth,
     )
-    .map_err(|err| format!("Error with http::register_locker_start: {:?}", err))?;
+    .map_err(|err| format!("Error from http::register_locker_start: {:?}", err))?;
     if registration_response.o == "unauthorized" {
         return Err("unauthorized".to_string());
     }
@@ -76,7 +76,7 @@ pub fn register_locker(
 pub fn open_locker(locker_id: &str, email: &str, key: &[u8], auth: &str) -> Result<String, String> {
     let mut client_rng = crypto::opaque::rng();
     let client_login_start_result = crypto::opaque::open_locker_start(&mut client_rng, key)
-        .map_err(|err| format!("Error in opaque::open_locker_start: {:?}", err))?;
+        .map_err(|err| format!("Error from opaque::open_locker_start: {:?}", err))?;
     let credential_request_bytes = client_login_start_result.message.serialize().to_vec();
 
     // Client sends credential_request_bytes to server
@@ -87,8 +87,8 @@ pub fn open_locker(locker_id: &str, email: &str, key: &[u8], auth: &str) -> Resu
         &base64::encode(credential_request_bytes),
         auth,
     )
-    .map_err(|err| format!("Error in http::open_locker_start: {:?}", err))?;
-    //TODO yuk! It's just temporart until I can implement a crate like github.com/dtolnay/thiserror
+    .map_err(|err| format!("Error from http::open_locker_start: {:?}", err))?;
+    //FIXME match on http 401 status response then match on Err(CliError::UnauthorizedError)
     if credential_response.o == "unauthorized" {
         return Err("unauthorized".to_string());
     }
@@ -116,7 +116,7 @@ pub fn open_locker(locker_id: &str, email: &str, key: &[u8], auth: &str) -> Resu
         nonce,
         auth,
     )
-    .map_err(|err| format!("Error in http::open_locker_finish: {:?}", err))?;
+    .map_err(|err| format!("Error from http::open_locker_finish: {:?}", err))?;
     if encrypted_locker_contents.o == "unauthorized" {
         return Err("unauthorized".to_string());
     }
@@ -141,7 +141,7 @@ pub fn delete_locker(
     let mut client_rng = crypto::opaque::rng();
     let start_result: ClientLoginStartResult<DefaultCipherSuite> =
         crypto::opaque::open_locker_start(&mut client_rng, key)
-            .map_err(|err| format!("Error in opaque::open_locker_start: {:?}", err))?;
+            .map_err(|err| format!("Error from opaque::open_locker_start: {:?}", err))?;
     let credential_request_bytes = start_result.message.serialize().to_vec();
 
     // Client sends credential_request_bytes to server and receives credential response back.
@@ -151,7 +151,7 @@ pub fn delete_locker(
         &base64::encode(credential_request_bytes),
         auth,
     )
-    .map_err(|err| format!("Error in http::delete_locker_start: {:?}", err))?;
+    .map_err(|err| format!("Error from http::delete_locker_start: {:?}", err))?;
     if response.o == "unauthorized" {
         return Err("unauthorized".to_string());
     }
@@ -167,7 +167,7 @@ pub fn delete_locker(
     // Client sends finalized message to server which proves ownership to delete.
     let delete_locker_response: DeleteLockerResponse =
         http::delete_locker_finish(locker_id, email, &finish_message, nonce, auth)
-            .map_err(|err| format!("Error in http::delete_locker_finish: {:?}", err))?;
+            .map_err(|err| format!("Error from http::delete_locker_finish: {:?}", err))?;
     if delete_locker_response.o == "unauthorized" {
         return Err("unauthorized".to_string());
     }

@@ -50,7 +50,7 @@ fn execute_registration_exchange(
         &base64::encode(registration_request_bytes),
         &pkce_code_challenge,
     )
-    .expect("Error getting response from register/start");
+    .map_err(|_e| String::from("Error getting response from register/start"))?;
 
     let (client_message_bytes, client_export_key) = crypto::opaque::register_finish(
         &mut client_rng,
@@ -103,15 +103,19 @@ fn execute_login_exchange(
         client_email,
         &credential_finalization_str,
     )
-    .expect("Could not get a LoginResponse!");
+    .map_err(|err| format!("Could not get a LoginResponse: {:?}", err))?;
 
-    match execute_login_verify(login_response, &client_session_key) {
+    match execute_login_verify(login_response, &client_session_key, client_email) {
         Ok(()) => Ok((client_session_key, client_export_key)),
         Err(err) => Err(err),
     }
 }
 
-fn execute_login_verify(response: LoginResponse, client_session_key: &[u8]) -> Result<(), String> {
+fn execute_login_verify(
+    response: LoginResponse,
+    client_session_key: &[u8],
+    email: &str,
+) -> Result<(), String> {
     match response.o.as_str() {
         "Failed" => Err("login_finish error".to_string()),
         rand_challenge => {
@@ -128,7 +132,7 @@ fn execute_login_verify(response: LoginResponse, client_session_key: &[u8]) -> R
                 client_session_key,
                 &[response.id.to_be_bytes()].concat(),
             );
-            util::write_to_secure_file("session_id.public", &session_id, true)
+            util::write_session_file(&session_id, email)
                 .map_err(|err| format!("Could not write session_id to file: {:?}", err))?;
             match server_response.o.as_str() {
                 "Success" => Ok(()),
