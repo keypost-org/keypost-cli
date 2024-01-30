@@ -55,10 +55,13 @@ fn run_interactive() -> Result<(), Error> {
                         let key_name = get_string("Name", &mut rl, false);
                         let export_key = util::read_file("export_key.private", true)
                             .expect("Error reading export_key");
-                        let (session_id, email) =
-                            util::read_session_file().expect("Error reading session file");
-                        match get_key(&email, &key_name, &export_key, &session_id) {
-                            Ok(response) => print_response(&response),
+                        match get_session_file() {
+                            Ok((session_id, email)) => {
+                                match get_key(&email, &key_name, &export_key, &session_id) {
+                                    Ok(response) => print_response(&response),
+                                    Err(error) => handle_error_response(&mut rl, error),
+                                }
+                            }
                             Err(error) => handle_error_response(&mut rl, error),
                         }
                     }
@@ -67,10 +70,14 @@ fn run_interactive() -> Result<(), Error> {
                         let message = get_string("Secret", &mut rl, false);
                         let export_key = util::read_file("export_key.private", true)
                             .expect("Error reading export_key");
-                        let (session_id, email) =
-                            util::read_session_file().expect("Error reading session file");
-                        match put_key(&email, &key_name, &export_key, message, &session_id) {
-                            Ok(response) => print_response(&response),
+                        match get_session_file() {
+                            Ok((session_id, email)) => {
+                                match put_key(&email, &key_name, &export_key, message, &session_id)
+                                {
+                                    Ok(response) => print_response(&response),
+                                    Err(error) => handle_error_response(&mut rl, error),
+                                }
+                            }
                             Err(error) => handle_error_response(&mut rl, error),
                         }
                     }
@@ -78,14 +85,23 @@ fn run_interactive() -> Result<(), Error> {
                         let key_name = get_string("Name", &mut rl, false);
                         let export_key = util::read_file("export_key.private", true)
                             .expect("Error reading export_key");
-                        let (session_id, email) =
-                            util::read_session_file().expect("Error reading session file");
-                        match delete_key(&email, &key_name, &export_key, &session_id) {
-                            Ok(response) => print_response(&response),
+                        match get_session_file() {
+                            Ok((session_id, email)) => {
+                                match delete_key(&email, &key_name, &export_key, &session_id) {
+                                    Ok(response) => print_response(&response),
+                                    Err(error) => handle_error_response(&mut rl, error),
+                                }
+                            }
                             Err(error) => handle_error_response(&mut rl, error),
                         }
                     }
-                    //TODO Give option '6' to export all secrets to a file.
+                    "6" => {
+                        let (session_id, email) =
+                            util::read_session_file().expect("Error reading session file");
+                        //TODO Delete session_id.public file
+                        //TODO Make call to new /logout endpoint
+                    }
+                    //TODO Give option '7' to export all secrets to a file.
                     _ => {
                         let err = Error::new(
                             ErrorKind::Other,
@@ -117,6 +133,13 @@ fn account_login(email: String, password: String) -> String {
     match account::login(email, password) {
         Ok(()) => "Login success!".to_string(),
         Err(err) => format!("Login failed: {}", &err),
+    }
+}
+
+fn get_session_file() -> Result<(String, String), String> {
+    match util::read_session_file() {
+        Ok(response) => Ok(response),
+        Err(_err) => Err("no_session".to_string()),
     }
 }
 
@@ -155,6 +178,9 @@ fn print_response(r: &str) {
 fn handle_error_response(rl: &mut Editor<()>, error: String) {
     if &error == "unauthorized" {
         print_response("Your session may have expired. Please login again:");
+        execute_login_cmd(rl);
+    } else if &error == "no_session" {
+        print_response("No session available. Please login:");
         execute_login_cmd(rl);
     } else {
         print_response(&error);
