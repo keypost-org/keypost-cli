@@ -15,6 +15,29 @@ pub struct CliRequest {
     pub n: u32,     // nonce
 }
 
+//FIXME Improve this - maybe with 'Option<>'s
+impl CliRequest {
+    pub fn new(
+        id: u32,
+        e: String,
+        i: String,
+        ch: String,
+        ci: String,
+        ve: String,
+        n: u32,
+    ) -> CliRequest {
+        CliRequest {
+            id,
+            e,
+            i,
+            ch,
+            ci,
+            ve,
+            n,
+        }
+    }
+}
+
 // TODO Decide whether to use one response struct to simplify and make code reusable.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct CliResponse {

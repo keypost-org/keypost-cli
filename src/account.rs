@@ -16,6 +16,12 @@ pub fn login(client_email: String, client_password: String) -> Result<(), String
     Ok(())
 }
 
+pub fn logout(session_id: &str) -> Result<String, String> {
+    let response =
+        http::logout(session_id).map_err(|err| format!("Logout request failed: {:?}", err))?;
+    Ok(response.o)
+}
+
 pub fn registration(
     _registration_key: String,
     client_email: String,

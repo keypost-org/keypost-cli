@@ -47,5 +47,9 @@ send -- "FOO\r"
 expect -ex "Key deleted!"
 
 sleep .1
+send -- "6\r"
+expect -ex "Success"
+
+sleep .1
 send -- ""
 expect eof
