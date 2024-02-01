@@ -136,7 +136,6 @@ pub fn logout(input: &str) -> Result<CliResponse, CliError> {
     match reqwest::blocking::Client::new()
         .post("http://localhost:8000/logout")
         .headers(create_headers_with_auth(input))
-        // .json::<CliRequest>(&request)
         .send()
     {
         Ok(response) => {
