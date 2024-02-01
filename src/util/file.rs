@@ -9,6 +9,11 @@ fn default_dir() -> String {
     String::from(env!("HOME")) + "/.keypost-cli"
 }
 
+fn delete_file(file_name: &str) -> Result<(), Error> {
+    let file_path = default_dir() + "/" + file_name;
+    fs::remove_file(file_path)
+}
+
 pub fn create_default_directory() -> Result<(), Error> {
     let dir = default_dir();
     match fs::read_dir(&dir) {
@@ -61,4 +66,8 @@ pub fn read_session_file() -> Result<(String, String), Error> {
     let (session_id, email_bytes) = session.split_at(SESSION_ID_LEN);
     let email = String::from_utf8(email_bytes.to_vec()).expect("Could not parse into String");
     Ok((base64::encode(session_id).to_string(), email.to_string()))
+}
+
+pub fn delete_session_file() -> Result<(), Error> {
+    delete_file("session_id.public")
 }

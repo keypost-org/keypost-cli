@@ -132,6 +132,25 @@ pub fn login_verify(id: u32, input: &str) -> Result<LoginResponse, CliError> {
     }
 }
 
+pub fn logout(input: &str) -> Result<CliResponse, CliError> {
+    match reqwest::blocking::Client::new()
+        .post("http://localhost:8000/logout")
+        .headers(create_headers_with_auth(input))
+        .send()
+    {
+        Ok(response) => {
+            if response.status().is_success() {
+                response
+                    .json::<CliResponse>()
+                    .map_err(CliError::ApiResponseReqwestError)
+            } else {
+                create_error_response::<_>(response)
+            }
+        }
+        Err(err) => Err(CliError::ApiResponseReqwestError(err)),
+    }
+}
+
 pub fn register_locker_start(
     id: &str,
     email: &str,

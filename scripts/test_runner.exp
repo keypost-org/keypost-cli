@@ -8,11 +8,12 @@ expect -ex "*
 \r
 Choose an option:\r
 \r
-1) Register a user\r
-2) Login as a user\r
+1) Register\r
+2) Login\r
 3) Get a key
 4) Put a key
 5) Delete a key
+6) Logout
 \r
 "
 
@@ -45,6 +46,10 @@ send -- "5\r"
 expect -ex "Name: "
 send -- "FOO\r"
 expect -ex "Key deleted!"
+
+sleep .1
+send -- "6\r"
+expect -ex "Success"
 
 sleep .1
 send -- ""

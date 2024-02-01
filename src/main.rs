@@ -14,11 +14,12 @@ const ERROR_EXIT_CODE: i32 = 1;
 
 const MENU: &str = "
 Choose an option:
-1) Register a user
-2) Login as a user
+1) Register
+2) Login
 3) Get a key
 4) Put a key
 5) Delete a key
+6) Logout
 ";
 
 fn init() {
@@ -95,17 +96,22 @@ fn run_interactive() -> Result<(), Error> {
                             Err(error) => handle_error_response(&mut rl, error),
                         }
                     }
-                    "6" => {
-                        let (session_id, email) =
-                            util::read_session_file().expect("Error reading session file");
-                        //TODO Delete session_id.public file
-                        //TODO Make call to new /logout endpoint
-                    }
-                    //TODO Give option '7' to export all secrets to a file.
+                    //TODO Give option to export all secrets to a file.
+                    "6" => match get_session_file() {
+                        Ok((session_id, _email)) => {
+                            let _ = util::delete_session_file()
+                                .map_err(|_err| "Could not delete session file!".to_string());
+                            let response = account_logout(&session_id);
+                            print_response(&response);
+                        }
+                        Err(_error) => {
+                            print_response("Session file not found, you're no longer logged in.")
+                        }
+                    },
                     _ => {
                         let err = Error::new(
                             ErrorKind::Other,
-                            "Invalid option (either specify 1, 2, 3 or 4)",
+                            "Invalid option (specify a number between 1-6)",
                         );
                         handle_error(ReadlineError::Io(err));
                     }
@@ -133,6 +139,13 @@ fn account_login(email: String, password: String) -> String {
     match account::login(email, password) {
         Ok(()) => "Login success!".to_string(),
         Err(err) => format!("Login failed: {}", &err),
+    }
+}
+
+fn account_logout(session_id: &str) -> String {
+    match account::logout(session_id) {
+        Ok(response) => response,
+        Err(err) => format!("Logout failed: {}", &err),
     }
 }
 
